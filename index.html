@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bean2Bean - Books OS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3345;
+    --text: #e4e6f0;
+    --text-dim: #8b8fa3;
+    --accent: #6c5ce7;
+    --green: #00cec9;
+    --red: #ff6b6b;
+    --orange: #fdcb6e;
+    --blue: #74b9ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left { display: flex; align-items: baseline; gap: 12px; }
+  .header-left h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .header-left h1 span { color: var(--accent); }
+  .header-left .powered-by {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+  }
+  .header-left .powered-by strong {
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+  }
+  .header .client-name {
+    font-size: 14px;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .header .client-select {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .kpi-card .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .kpi-card .value { font-size: 28px; font-weight: 700; }
+  .kpi-card .delta { font-size: 13px; margin-top: 4px; }
+  .kpi-card .delta.up { color: var(--green); }
+  .kpi-card .delta.down { color: var(--red); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 1200px) { .grid-3 { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text-dim); }
+  .chart-container { position: relative; width: 100%; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover { background: var(--surface2); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .tag-red { background: rgba(255,107,107,0.15); color: var(--red); }
+  .tag-green { background: rgba(0,206,201,0.15); color: var(--green); }
+  .tag-orange { background: rgba(253,203,110,0.15); color: var(--orange); }
+  .scrollable { max-height: 400px; overflow-y: auto; }
+  .scrollable::-webkit-scrollbar { width: 6px; }
+  .scrollable::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .tab-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 13px; }
+  .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  #loading { text-align: center; padding: 100px; font-size: 18px; color: var(--text-dim); }
+  .date-filter { display: flex; align-items: center; gap: 8px; }
+  .date-input { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  .date-input::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+  .filter-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: white; cursor: pointer; font-size: 13px; }
+  .filter-btn.reset { background: transparent; color: var(--text-dim); border-color: var(--border); }
+  .filter-btn:hover { opacity: 0.85; }
+  .active-filter { background: var(--accent) !important; color: white !important; border-color: var(--accent) !important; }
+  #yearPresets .tab-btn { padding: 4px 10px; font-size: 12px; }
+  #loginScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 20px;
+  }
+  #loginScreen .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+  }
+  #loginScreen .login-box h1 { font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  #loginScreen .login-box h1 span { color: var(--accent); }
+  #loginScreen .login-box .subtitle { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 28px; }
+  #loginScreen .login-box .subtitle strong {
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  #loginScreen input[type="password"] {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 15px;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #loginScreen input[type="password"]:focus { border-color: var(--accent); }
+  #loginScreen .login-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  #loginScreen .login-btn:hover { opacity: 0.85; }
+  #loginScreen .login-error { color: var(--red); font-size: 13px; margin-top: 8px; display: none; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>Bean <span>2</span> Bean</h1>
+    <div class="subtitle">Powered by <strong>Books OS</strong></div>
+    <form onsubmit="return handleLogin(event)">
+      <input type="password" id="loginPassword" placeholder="Enter password" autofocus />
+      <button type="submit" class="login-btn">Access Dashboard</button>
+    </form>
+    <div class="login-error" id="loginError">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<div id="loading" style="display:none;">Loading analysis data...</div>
+
+<div id="app" style="display:none;">
+  <div class="header">
+    <div class="header-left">
+      <h1 id="clientTitle">Bean <span>2</span> Bean</h1>
+      <div class="powered-by">Powered by <strong>Books OS</strong></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <select id="clientSelect" class="client-select"></select>
+      <div class="date-filter">
+        <input type="date" id="startDate" class="date-input" />
+        <span style="color:var(--text-dim);">to</span>
+        <input type="date" id="endDate" class="date-input" />
+        <button class="filter-btn" onclick="applyDateFilter()">Filter</button>
+        <button class="filter-btn reset" onclick="resetDateFilter()">Reset</button>
+      </div>
+      <div class="tab-row" style="margin:0;" id="yearPresets"></div>
+      <span class="client-name" id="generatedAt"></span>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Revenue Charts -->
+  <div class="grid-2">
+    <div class="card">
+      <h3>Monthly Revenue</h3>
+      <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Revenue by Year</h3>
+      <div class="chart-container"><canvas id="yearChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Customer Charts -->
+  <div class="grid-2">
+    <div class="card">
+      <h3>New vs Returning Customers (Monthly)</h3>
+      <div class="chart-container"><canvas id="newReturnChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Customer Churn Rate by Year</h3>
+      <div class="chart-container"><canvas id="churnChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Concentration + Quarterly -->
+  <div class="grid-2">
+    <div class="card">
+      <h3>Revenue Concentration</h3>
+      <div class="chart-container"><canvas id="concentrationChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Quarterly Revenue & AOV</h3>
+      <div class="chart-container"><canvas id="quarterlyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Tables -->
+  <div class="grid-2">
+    <div class="card">
+      <h3>Top 25 Customers</h3>
+      <div class="scrollable" id="topCustomersTable"></div>
+    </div>
+    <div class="card">
+      <h3>Product Mix (Top 30)</h3>
+      <div class="scrollable" id="productMixTable"></div>
+    </div>
+  </div>
+
+  <!-- Cross-Sell Section -->
+  <div class="grid-3" style="margin-top:20px;">
+    <div class="card">
+      <h3>Product Pair Affinity (Market Basket)</h3>
+      <div class="scrollable" id="pairTable"></div>
+    </div>
+    <div class="card">
+      <h3>Cross-Sell Opportunities (Active Customers)</h3>
+      <div class="scrollable" id="crossSellTable"></div>
+    </div>
+    <div class="card">
+      <h3>Product Adoption Ladder</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Entry product -> what customers expand to next</p>
+      <div class="scrollable" id="ladderTable"></div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:20px;">
+    <div class="card">
+      <h3>Lost Customers (90+ Days Inactive)</h3>
+      <div class="tab-row">
+        <button class="tab-btn active" onclick="filterLost('all')">All (<span id="lostCount"></span>)</button>
+        <button class="tab-btn" onclick="filterLost('high')">High Value</button>
+        <button class="tab-btn" onclick="filterLost('recent')">Recently Lost</button>
+      </div>
+      <div class="scrollable" id="lostTable"></div>
+    </div>
+    <div class="card">
+      <h3>At-Risk Customers (Declining Spend)</h3>
+      <div class="scrollable" id="atRiskTable"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+window.__BOOKS_OS_DATA__ = {"clients": ["bean2bean"], "data": {"bean2bean": {"client": "bean2bean", "generated_at": "2026-03-17T05:19:55.102531", "revenue_by_year": [{"year": 2023, "active_customers": 142, "total_orders": 1857, "revenue": 588144.7, "total_units": 21430.0}, {"year": 2024, "active_customers": 120, "total_orders": 1706, "revenue": 591729.66, "total_units": 25463.0}, {"year": 2025, "active_customers": 104, "total_orders": 1650, "revenue": 661399.0, "total_units": 21368.7}, {"year": 2026, "active_customers": 78, "total_orders": 323, "revenue": 139026.0, "total_units": 56147.0}], "revenue_by_month": [{"month": "2023-01", "active_customers": 72, "orders": 152, "revenue": 48953.65}, {"month": "2023-02", "active_customers": 74, "orders": 146, "revenue": 36089.25}, {"month": "2023-03", "active_customers": 79, "orders": 169, "revenue": 45725.65}, {"month": "2023-04", "active_customers": 67, "orders": 132, "revenue": 40847.0}, {"month": "2023-05", "active_customers": 84, "orders": 190, "revenue": 57223.85}, {"month": "2023-06", "active_customers": 82, "orders": 162, "revenue": 56951.55}, {"month": "2023-07", "active_customers": 71, "orders": 144, "revenue": 48238.02}, {"month": "2023-08", "active_customers": 70, "orders": 161, "revenue": 51607.85}, {"month": "2023-09", "active_customers": 75, "orders": 154, "revenue": 50097.25}, {"month": "2023-10", "active_customers": 66, "orders": 166, "revenue": 59319.63}, {"month": "2023-11", "active_customers": 67, "orders": 138, "revenue": 47379.5}, {"month": "2023-12", "active_customers": 62, "orders": 145, "revenue": 45711.5}, {"month": "2024-01", "active_customers": 65, "orders": 149, "revenue": 49242.25}, {"month": "2024-02", "active_customers": 71, "orders": 151, "revenue": 50402.75}, {"month": "2024-03", "active_customers": 69, "orders": 140, "revenue": 46884.05}, {"month": "2024-04", "active_customers": 70, "orders": 147, "revenue": 52231.6}, {"month": "2024-05", "active_customers": 70, "orders": 153, "revenue": 55610.8}, {"month": "2024-06", "active_customers": 68, "orders": 147, "revenue": 53774.81}, {"month": "2024-07", "active_customers": 67, "orders": 120, "revenue": 42324.05}, {"month": "2024-08", "active_customers": 72, "orders": 165, "revenue": 51105.95}, {"month": "2024-09", "active_customers": 62, "orders": 121, "revenue": 45758.25}, {"month": "2024-10", "active_customers": 66, "orders": 149, "revenue": 52325.4}, {"month": "2024-11", "active_customers": 62, "orders": 130, "revenue": 47232.0}, {"month": "2024-12", "active_customers": 62, "orders": 135, "revenue": 44837.75}, {"month": "2025-01", "active_customers": 68, "orders": 132, "revenue": 48758.37}, {"month": "2025-02", "active_customers": 62, "orders": 121, "revenue": 40190.27}, {"month": "2025-03", "active_customers": 65, "orders": 128, "revenue": 46712.67}, {"month": "2025-04", "active_customers": 65, "orders": 153, "revenue": 58199.84}, {"month": "2025-05", "active_customers": 67, "orders": 137, "revenue": 54295.82}, {"month": "2025-06", "active_customers": 67, "orders": 138, "revenue": 56792.89}, {"month": "2025-07", "active_customers": 67, "orders": 141, "revenue": 58072.72}, {"month": "2025-08", "active_customers": 67, "orders": 137, "revenue": 56105.0}, {"month": "2025-09", "active_customers": 69, "orders": 133, "revenue": 56342.23}, {"month": "2025-10", "active_customers": 67, "orders": 153, "revenue": 65240.75}, {"month": "2025-11", "active_customers": 57, "orders": 118, "revenue": 53036.35}, {"month": "2025-12", "active_customers": 68, "orders": 159, "revenue": 67652.09}, {"month": "2026-01", "active_customers": 67, "orders": 132, "revenue": 55948.8}, {"month": "2026-02", "active_customers": 65, "orders": 126, "revenue": 56211.8}, {"month": "2026-03", "active_customers": 48, "orders": 65, "revenue": 26865.4}], "yoy_growth": [{"year": 2023, "revenue": 588144.7, "customers": 142, "prev_year_revenue": null, "prev_year_customers": null, "revenue_growth_pct": null, "customer_growth_pct": null}, {"year": 2024, "revenue": 591729.66, "customers": 120, "prev_year_revenue": 588144.7, "prev_year_customers": 142, "revenue_growth_pct": 0.6, "customer_growth_pct": -15.5}, {"year": 2025, "revenue": 661399.0, "customers": 104, "prev_year_revenue": 591729.66, "prev_year_customers": 120, "revenue_growth_pct": 11.8, "customer_growth_pct": -13.3}, {"year": 2026, "revenue": 139026.0, "customers": 78, "prev_year_revenue": 661399.0, "prev_year_customers": 104, "revenue_growth_pct": -79.0, "customer_growth_pct": -25.0}], "quarterly_summary": [{"year": 2023, "quarter": 1, "active_customers": 107, "orders": 467, "revenue": 130768.55, "avg_order_value": 280.02}, {"year": 2023, "quarter": 2, "active_customers": 107, "orders": 484, "revenue": 155022.4, "avg_order_value": 320.29}, {"year": 2023, "quarter": 3, "active_customers": 97, "orders": 458, "revenue": 149943.12, "avg_order_value": 327.39}, {"year": 2023, "quarter": 4, "active_customers": 81, "orders": 448, "revenue": 152410.63, "avg_order_value": 340.2}, {"year": 2024, "quarter": 1, "active_customers": 91, "orders": 439, "revenue": 146529.05, "avg_order_value": 333.78}, {"year": 2024, "quarter": 2, "active_customers": 99, "orders": 447, "revenue": 161617.21, "avg_order_value": 361.56}, {"year": 2024, "quarter": 3, "active_customers": 87, "orders": 406, "revenue": 139188.25, "avg_order_value": 342.83}, {"year": 2024, "quarter": 4, "active_customers": 84, "orders": 414, "revenue": 144395.15, "avg_order_value": 348.78}, {"year": 2025, "quarter": 1, "active_customers": 86, "orders": 381, "revenue": 135661.31, "avg_order_value": 356.07}, {"year": 2025, "quarter": 2, "active_customers": 84, "orders": 428, "revenue": 169288.55, "avg_order_value": 395.53}, {"year": 2025, "quarter": 3, "active_customers": 84, "orders": 411, "revenue": 170519.95, "avg_order_value": 414.89}, {"year": 2025, "quarter": 4, "active_customers": 83, "orders": 430, "revenue": 185929.19, "avg_order_value": 432.39}, {"year": 2026, "quarter": 1, "active_customers": 78, "orders": 323, "revenue": 139026.0, "avg_order_value": 430.42}], "customer_churn": [{"year": 2023, "total_customers": 142, "retained": 91, "churned": 51, "churn_rate_pct": 35.9, "retention_rate_pct": 64.1}, {"year": 2024, "total_customers": 120, "retained": 82, "churned": 38, "churn_rate_pct": 31.7, "retention_rate_pct": 68.3}, {"year": 2025, "total_customers": 104, "retained": 72, "churned": 32, "churn_rate_pct": 30.8, "retention_rate_pct": 69.2}], "lost_customers": [{"customer": "The Rounds", "parent_customer": "", "last_order_date": "2025-04-01", "days_since_last_order": 350, "total_orders": 95, "lifetime_revenue": 93233.81, "first_order_date": "2023-01-05"}, {"customer": "Elcy's Cafe", "parent_customer": "", "last_order_date": "2025-06-11", "days_since_last_order": 279, "total_orders": 39, "lifetime_revenue": 31423.0, "first_order_date": "2023-09-12"}, {"customer": "Philly Bagels - Passyunk Ave.", "parent_customer": "", "last_order_date": "2024-09-03", "days_since_last_order": 560, "total_orders": 67, "lifetime_revenue": 21605.3, "first_order_date": "2023-01-09"}, {"customer": "Philly Bagels - JFK Blvd.", "parent_customer": "", "last_order_date": "2025-01-22", "days_since_last_order": 419, "total_orders": 73, "lifetime_revenue": 17664.75, "first_order_date": "2023-01-03"}, {"customer": "Philly Bagels - Fitzwater Street", "parent_customer": "", "last_order_date": "2024-04-10", "days_since_last_order": 706, "total_orders": 48, "lifetime_revenue": 14383.0, "first_order_date": "2023-01-03"}, {"customer": "Bond Collective - Bushwick", "parent_customer": "", "last_order_date": "2025-07-07", "days_since_last_order": 253, "total_orders": 25, "lifetime_revenue": 14036.25, "first_order_date": "2023-01-18"}, {"customer": "Kimberton Whole Foods", "parent_customer": "", "last_order_date": "2024-11-25", "days_since_last_order": 477, "total_orders": 28, "lifetime_revenue": 12921.0, "first_order_date": "2023-09-06"}, {"customer": "Bond Collective - 60 Broad", "parent_customer": "", "last_order_date": "2025-07-01", "days_since_last_order": 259, "total_orders": 23, "lifetime_revenue": 12283.5, "first_order_date": "2023-02-02"}, {"customer": "Pops Trattoria", "parent_customer": "", "last_order_date": "2025-11-18", "days_since_last_order": 119, "total_orders": 57, "lifetime_revenue": 11891.0, "first_order_date": "2023-04-18"}, {"customer": "Helium Comedy Club", "parent_customer": "", "last_order_date": "2025-11-11", "days_since_last_order": 126, "total_orders": 42, "lifetime_revenue": 10560.0, "first_order_date": "2023-08-16"}, {"customer": "Philly Bagels - South St.", "parent_customer": "", "last_order_date": "2024-04-18", "days_since_last_order": 698, "total_orders": 48, "lifetime_revenue": 8867.0, "first_order_date": "2023-01-20"}, {"customer": "Bond Collective - Greenpoint", "parent_customer": "", "last_order_date": "2025-05-28", "days_since_last_order": 293, "total_orders": 20, "lifetime_revenue": 8712.5, "first_order_date": "2023-01-19"}, {"customer": "Philly Bagels - Locust St.", "parent_customer": "", "last_order_date": "2024-06-24", "days_since_last_order": 631, "total_orders": 30, "lifetime_revenue": 7502.5, "first_order_date": "2023-01-23"}, {"customer": "Bond Collective - Gowanus", "parent_customer": "", "last_order_date": "2024-05-22", "days_since_last_order": 664, "total_orders": 17, "lifetime_revenue": 7109.5, "first_order_date": "2023-01-06"}, {"customer": "Lokal Artisan Foods", "parent_customer": "", "last_order_date": "2024-12-22", "days_since_last_order": 450, "total_orders": 66, "lifetime_revenue": 7032.97, "first_order_date": "2023-01-23"}, {"customer": "Goats Beard", "parent_customer": "", "last_order_date": "2024-12-17", "days_since_last_order": 455, "total_orders": 28, "lifetime_revenue": 5889.0, "first_order_date": "2023-01-10"}, {"customer": "Iron Abbey", "parent_customer": "", "last_order_date": "2024-04-11", "days_since_last_order": 705, "total_orders": 24, "lifetime_revenue": 5771.0, "first_order_date": "2023-08-16"}, {"customer": "Bond Collective - 55 Broadway", "parent_customer": "", "last_order_date": "2024-12-19", "days_since_last_order": 453, "total_orders": 22, "lifetime_revenue": 5463.5, "first_order_date": "2023-01-17"}, {"customer": "Main Squeeze - Fishtown", "parent_customer": "", "last_order_date": "2025-12-06", "days_since_last_order": 101, "total_orders": 35, "lifetime_revenue": 4869.75, "first_order_date": "2023-01-04"}, {"customer": "Zoe's Coffee (Torresdale Ave.)", "parent_customer": "", "last_order_date": "2025-05-27", "days_since_last_order": 294, "total_orders": 14, "lifetime_revenue": 4464.0, "first_order_date": "2024-06-06"}, {"customer": "Moore Bagels (deleted)", "parent_customer": "", "last_order_date": "2023-07-13", "days_since_last_order": 978, "total_orders": 15, "lifetime_revenue": 4226.0, "first_order_date": "2023-01-09"}, {"customer": "Fractured Prune Wildwood", "parent_customer": "", "last_order_date": "2024-07-23", "days_since_last_order": 602, "total_orders": 12, "lifetime_revenue": 4165.0, "first_order_date": "2023-03-16"}, {"customer": "Cantina Los Caballitos", "parent_customer": "", "last_order_date": "2024-09-17", "days_since_last_order": 546, "total_orders": 19, "lifetime_revenue": 4137.0, "first_order_date": "2023-02-13"}, {"customer": "Cheezy Vegan", "parent_customer": "", "last_order_date": "2024-06-10", "days_since_last_order": 645, "total_orders": 18, "lifetime_revenue": 3776.0, "first_order_date": "2023-02-03"}, {"customer": "Fractured Prune Ocean City", "parent_customer": "", "last_order_date": "2024-08-23", "days_since_last_order": 571, "total_orders": 11, "lifetime_revenue": 3585.0, "first_order_date": "2023-05-12"}, {"customer": "Standard Tap", "parent_customer": "", "last_order_date": "2025-06-23", "days_since_last_order": 267, "total_orders": 11, "lifetime_revenue": 3340.0, "first_order_date": "2023-08-23"}, {"customer": "Guardhouse (deleted)", "parent_customer": "", "last_order_date": "2023-09-18", "days_since_last_order": 911, "total_orders": 11, "lifetime_revenue": 2627.5, "first_order_date": "2023-01-05"}, {"customer": "Fractured Prune Sea Isle", "parent_customer": "", "last_order_date": "2024-08-15", "days_since_last_order": 579, "total_orders": 10, "lifetime_revenue": 2510.0, "first_order_date": "2023-05-15"}, {"customer": "Lobster Rolls & More", "parent_customer": "", "last_order_date": "2023-09-13", "days_since_last_order": 916, "total_orders": 3, "lifetime_revenue": 2300.0, "first_order_date": "2023-06-28"}, {"customer": "Westerly Natural Market", "parent_customer": "", "last_order_date": "2023-08-22", "days_since_last_order": 938, "total_orders": 3, "lifetime_revenue": 2160.0, "first_order_date": "2023-06-01"}, {"customer": "Industrious Playa District", "parent_customer": "", "last_order_date": "2023-09-11", "days_since_last_order": 918, "total_orders": 7, "lifetime_revenue": 2098.0, "first_order_date": "2023-01-23"}, {"customer": "Pareto Health", "parent_customer": "", "last_order_date": "2024-01-08", "days_since_last_order": 799, "total_orders": 8, "lifetime_revenue": 2068.0, "first_order_date": "2023-02-01"}, {"customer": "Kitchen 93", "parent_customer": "", "last_order_date": "2025-12-16", "days_since_last_order": 91, "total_orders": 12, "lifetime_revenue": 2047.2, "first_order_date": "2023-02-08"}, {"customer": "Main Squeeze - Broad St.", "parent_customer": "", "last_order_date": "2025-10-14", "days_since_last_order": 154, "total_orders": 15, "lifetime_revenue": 2003.0, "first_order_date": "2023-02-23"}, {"customer": "Philadelphia Fire Dept - Engine 44", "parent_customer": "", "last_order_date": "2025-11-13", "days_since_last_order": 124, "total_orders": 10, "lifetime_revenue": 1975.0, "first_order_date": "2024-12-10"}, {"customer": "Heaven Hill Brands", "parent_customer": "", "last_order_date": "2024-02-08", "days_since_last_order": 768, "total_orders": 5, "lifetime_revenue": 1876.5, "first_order_date": "2023-03-28"}, {"customer": "Vintage Wine Bar", "parent_customer": "", "last_order_date": "2025-10-22", "days_since_last_order": 146, "total_orders": 14, "lifetime_revenue": 1869.75, "first_order_date": "2023-01-16"}, {"customer": "Zoe Coffee Cart", "parent_customer": "", "last_order_date": "2025-09-22", "days_since_last_order": 176, "total_orders": 8, "lifetime_revenue": 1498.0, "first_order_date": "2024-02-09"}, {"customer": "Helm Creative Studio", "parent_customer": "", "last_order_date": "2025-12-11", "days_since_last_order": 96, "total_orders": 3, "lifetime_revenue": 1472.0, "first_order_date": "2025-12-04"}, {"customer": "Cantina Dos Segundos", "parent_customer": "", "last_order_date": "2024-09-25", "days_since_last_order": 538, "total_orders": 8, "lifetime_revenue": 1400.0, "first_order_date": "2023-02-01"}, {"customer": "The Dirty Tea", "parent_customer": "", "last_order_date": "2025-10-17", "days_since_last_order": 151, "total_orders": 5, "lifetime_revenue": 1337.5, "first_order_date": "2023-06-14"}, {"customer": "Bond Collective - Vinegar Hill", "parent_customer": "", "last_order_date": "2024-10-09", "days_since_last_order": 524, "total_orders": 5, "lifetime_revenue": 1250.0, "first_order_date": "2023-01-04"}, {"customer": "goPuff Washington Ave. (deleted)", "parent_customer": "", "last_order_date": "2023-05-15", "days_since_last_order": 1037, "total_orders": 6, "lifetime_revenue": 1224.0, "first_order_date": "2023-01-05"}, {"customer": "goPuff Grays Ferry (deleted)", "parent_customer": "", "last_order_date": "2023-06-09", "days_since_last_order": 1012, "total_orders": 6, "lifetime_revenue": 1194.0, "first_order_date": "2023-01-09"}, {"customer": "Barstool Sports Bar (deleted)", "parent_customer": "", "last_order_date": "2023-03-08", "days_since_last_order": 1105, "total_orders": 4, "lifetime_revenue": 1034.4, "first_order_date": "2023-01-18"}, {"customer": "goPuff Tulip St. (deleted)", "parent_customer": "", "last_order_date": "2023-07-06", "days_since_last_order": 985, "total_orders": 6, "lifetime_revenue": 972.0, "first_order_date": "2023-01-09"}, {"customer": "William McLaughlin", "parent_customer": "", "last_order_date": "2025-10-14", "days_since_last_order": 154, "total_orders": 9, "lifetime_revenue": 920.0, "first_order_date": "2023-03-01"}, {"customer": "Josie's Breakfast & Lunch", "parent_customer": "", "last_order_date": "2024-01-12", "days_since_last_order": 795, "total_orders": 5, "lifetime_revenue": 915.0, "first_order_date": "2023-02-06"}, {"customer": "JJ Myers", "parent_customer": "", "last_order_date": "2025-09-30", "days_since_last_order": 168, "total_orders": 7, "lifetime_revenue": 895.0, "first_order_date": "2024-02-08"}, {"customer": "Slice & Schmear", "parent_customer": "", "last_order_date": "2025-01-13", "days_since_last_order": 428, "total_orders": 5, "lifetime_revenue": 864.5, "first_order_date": "2024-06-28"}, {"customer": "Freed's Supermarket", "parent_customer": "", "last_order_date": "2024-07-08", "days_since_last_order": 617, "total_orders": 4, "lifetime_revenue": 840.0, "first_order_date": "2024-04-17"}, {"customer": "Loco Pez Graduate Hospital", "parent_customer": "", "last_order_date": "2024-01-10", "days_since_last_order": 797, "total_orders": 5, "lifetime_revenue": 821.0, "first_order_date": "2023-02-08"}, {"customer": "City Wide Realty, Inc", "parent_customer": "", "last_order_date": "2023-06-12", "days_since_last_order": 1009, "total_orders": 2, "lifetime_revenue": 810.25, "first_order_date": "2023-05-27"}, {"customer": "Danielle Lapierre", "parent_customer": "", "last_order_date": "2025-12-10", "days_since_last_order": 97, "total_orders": 6, "lifetime_revenue": 767.0, "first_order_date": "2023-04-12"}, {"customer": "Spruce Hill Provisions", "parent_customer": "", "last_order_date": "2024-07-01", "days_since_last_order": 624, "total_orders": 5, "lifetime_revenue": 744.0, "first_order_date": "2023-01-25"}, {"customer": "goPuff Callowhill (deleted)", "parent_customer": "", "last_order_date": "2023-05-15", "days_since_last_order": 1037, "total_orders": 4, "lifetime_revenue": 729.0, "first_order_date": "2023-02-08"}, {"customer": "Bond Collective - Flat Iron (deleted)", "parent_customer": "", "last_order_date": "2023-01-26", "days_since_last_order": 1146, "total_orders": 3, "lifetime_revenue": 720.0, "first_order_date": "2023-01-06"}, {"customer": "gopuff (deleted)", "parent_customer": "", "last_order_date": "2023-01-25", "days_since_last_order": 1147, "total_orders": 1, "lifetime_revenue": 703.5, "first_order_date": "2023-01-25"}, {"customer": "Cigar Sessions (deleted)", "parent_customer": "", "last_order_date": "2023-07-16", "days_since_last_order": 975, "total_orders": 3, "lifetime_revenue": 675.0, "first_order_date": "2023-01-03"}, {"customer": "Industrious Irvine", "parent_customer": "", "last_order_date": "2023-05-17", "days_since_last_order": 1035, "total_orders": 5, "lifetime_revenue": 637.0, "first_order_date": "2023-01-09"}, {"customer": "Newark Natural Foods (deleted)", "parent_customer": "", "last_order_date": "2023-05-01", "days_since_last_order": 1051, "total_orders": 2, "lifetime_revenue": 570.0, "first_order_date": "2023-02-16"}, {"customer": "Art in the Age (deleted)", "parent_customer": "", "last_order_date": "2023-06-30", "days_since_last_order": 991, "total_orders": 3, "lifetime_revenue": 566.0, "first_order_date": "2023-02-06"}, {"customer": "Ilegal Mezcal", "parent_customer": "", "last_order_date": "2023-03-30", "days_since_last_order": 1083, "total_orders": 1, "lifetime_revenue": 552.0, "first_order_date": "2023-03-30"}, {"customer": "Industrious Columbus The Sutton", "parent_customer": "", "last_order_date": "2023-02-24", "days_since_last_order": 1117, "total_orders": 3, "lifetime_revenue": 550.0, "first_order_date": "2023-01-11"}, {"customer": "Industrious Plano (deleted)", "parent_customer": "", "last_order_date": "2025-02-02", "days_since_last_order": 408, "total_orders": 4, "lifetime_revenue": 548.0, "first_order_date": "2023-01-10"}, {"customer": "Thrive Financial Services, LLC", "parent_customer": "", "last_order_date": "2024-05-30", "days_since_last_order": 656, "total_orders": 2, "lifetime_revenue": 543.0, "first_order_date": "2024-04-26"}, {"customer": "Juan Giusto", "parent_customer": "", "last_order_date": "2024-11-03", "days_since_last_order": 499, "total_orders": 2, "lifetime_revenue": 517.5, "first_order_date": "2024-10-23"}, {"customer": "goPuff Ridge Ave. (deleted)", "parent_customer": "", "last_order_date": "2023-05-15", "days_since_last_order": 1037, "total_orders": 3, "lifetime_revenue": 516.0, "first_order_date": "2023-02-09"}, {"customer": "Blackwood Studios", "parent_customer": "", "last_order_date": "2024-05-28", "days_since_last_order": 658, "total_orders": 4, "lifetime_revenue": 485.0, "first_order_date": "2023-01-27"}, {"customer": "Bond Collective - D.C. (deleted)", "parent_customer": "", "last_order_date": "2023-04-10", "days_since_last_order": 1072, "total_orders": 3, "lifetime_revenue": 475.0, "first_order_date": "2023-02-02"}, {"customer": "Industrious Old Pasadena (deleted)", "parent_customer": "", "last_order_date": "2023-05-26", "days_since_last_order": 1026, "total_orders": 2, "lifetime_revenue": 469.0, "first_order_date": "2023-02-27"}, {"customer": "Albert M Greenfield Home and School Association", "parent_customer": "", "last_order_date": "2023-06-14", "days_since_last_order": 1007, "total_orders": 2, "lifetime_revenue": 450.0, "first_order_date": "2023-06-01"}, {"customer": "goPuff Jefferson St. (deleted)", "parent_customer": "", "last_order_date": "2023-07-06", "days_since_last_order": 985, "total_orders": 3, "lifetime_revenue": 450.0, "first_order_date": "2023-02-08"}, {"customer": "320 Market Cafe (deleted)", "parent_customer": "", "last_order_date": "2023-03-08", "days_since_last_order": 1105, "total_orders": 2, "lifetime_revenue": 405.0, "first_order_date": "2023-03-08"}, {"customer": "De La Terre BYOB (deleted)", "parent_customer": "", "last_order_date": "2024-05-04", "days_since_last_order": 682, "total_orders": 2, "lifetime_revenue": 371.0, "first_order_date": "2024-03-28"}, {"customer": "Industrious Seaport", "parent_customer": "", "last_order_date": "2023-06-08", "days_since_last_order": 1013, "total_orders": 2, "lifetime_revenue": 368.0, "first_order_date": "2023-05-02"}, {"customer": "Rex At The Royal", "parent_customer": "", "last_order_date": "2023-12-15", "days_since_last_order": 823, "total_orders": 2, "lifetime_revenue": 366.0, "first_order_date": "2023-11-29"}, {"customer": "Bookers (deleted)", "parent_customer": "", "last_order_date": "2023-07-12", "days_since_last_order": 979, "total_orders": 3, "lifetime_revenue": 342.0, "first_order_date": "2023-05-18"}, {"customer": "goPuff Chelten Ave (deleted)", "parent_customer": "", "last_order_date": "2023-03-23", "days_since_last_order": 1090, "total_orders": 2, "lifetime_revenue": 333.0, "first_order_date": "2023-02-09"}, {"customer": "Varga Bar", "parent_customer": "", "last_order_date": "2024-03-18", "days_since_last_order": 729, "total_orders": 3, "lifetime_revenue": 315.0, "first_order_date": "2023-05-16"}, {"customer": "Locals Market", "parent_customer": "", "last_order_date": "2024-08-15", "days_since_last_order": 579, "total_orders": 1, "lifetime_revenue": 306.0, "first_order_date": "2024-08-15"}, {"customer": "Grind House Gym", "parent_customer": "", "last_order_date": "2023-11-02", "days_since_last_order": 866, "total_orders": 1, "lifetime_revenue": 300.0, "first_order_date": "2023-11-02"}, {"customer": "Penn's Treaty Coworking", "parent_customer": "", "last_order_date": "2023-03-29", "days_since_last_order": 1084, "total_orders": 1, "lifetime_revenue": 297.3, "first_order_date": "2023-03-29"}, {"customer": "Gloria Imsdahl", "parent_customer": "", "last_order_date": "2025-08-27", "days_since_last_order": 202, "total_orders": 3, "lifetime_revenue": 270.0, "first_order_date": "2025-02-26"}, {"customer": "Paik Coffee", "parent_customer": "", "last_order_date": "2024-05-17", "days_since_last_order": 669, "total_orders": 1, "lifetime_revenue": 268.75, "first_order_date": "2024-05-17"}, {"customer": "Starbolt", "parent_customer": "", "last_order_date": "2025-06-13", "days_since_last_order": 277, "total_orders": 1, "lifetime_revenue": 260.0, "first_order_date": "2025-06-13"}, {"customer": "Symphony", "parent_customer": "", "last_order_date": "2023-08-17", "days_since_last_order": 943, "total_orders": 1, "lifetime_revenue": 250.0, "first_order_date": "2023-08-17"}, {"customer": "Temple University - School of Sport, Tourism, and Hospitality Management", "parent_customer": "", "last_order_date": "2023-02-17", "days_since_last_order": 1124, "total_orders": 1, "lifetime_revenue": 250.0, "first_order_date": "2023-02-17"}, {"customer": "Bagels Up", "parent_customer": "", "last_order_date": "2025-03-18", "days_since_last_order": 364, "total_orders": 1, "lifetime_revenue": 222.0, "first_order_date": "2025-03-18"}, {"customer": "Fringe Arts Bar (deleted)", "parent_customer": "", "last_order_date": "2023-06-23", "days_since_last_order": 998, "total_orders": 1, "lifetime_revenue": 211.5, "first_order_date": "2023-06-23"}, {"customer": "The Farmers Market Pros", "parent_customer": "", "last_order_date": "2024-02-29", "days_since_last_order": 747, "total_orders": 1, "lifetime_revenue": 210.0, "first_order_date": "2024-02-29"}, {"customer": "Amy's Pastelillos", "parent_customer": "", "last_order_date": "2024-12-29", "days_since_last_order": 443, "total_orders": 2, "lifetime_revenue": 210.0, "first_order_date": "2024-11-23"}, {"customer": "Phyllis LoDuca", "parent_customer": "", "last_order_date": "2024-12-17", "days_since_last_order": 455, "total_orders": 1, "lifetime_revenue": 180.0, "first_order_date": "2024-12-17"}, {"customer": "The Daisy Tavern", "parent_customer": "", "last_order_date": "2024-07-17", "days_since_last_order": 608, "total_orders": 1, "lifetime_revenue": 171.0, "first_order_date": "2024-07-17"}, {"customer": "Kraftwork Bar", "parent_customer": "", "last_order_date": "2023-01-09", "days_since_last_order": 1163, "total_orders": 1, "lifetime_revenue": 168.75, "first_order_date": "2023-01-09"}, {"customer": "goPuff Southampton Rd (deleted)", "parent_customer": "", "last_order_date": "2023-03-10", "days_since_last_order": 1103, "total_orders": 1, "lifetime_revenue": 168.0, "first_order_date": "2023-03-10"}, {"customer": "Cosmic Cafe & Catering", "parent_customer": "", "last_order_date": "2023-01-26", "days_since_last_order": 1146, "total_orders": 1, "lifetime_revenue": 168.0, "first_order_date": "2023-01-26"}, {"customer": "goPuff Cottman Ave (deleted)", "parent_customer": "", "last_order_date": "2023-03-10", "days_since_last_order": 1103, "total_orders": 1, "lifetime_revenue": 168.0, "first_order_date": "2023-03-10"}, {"customer": "Taller Puertorrique\u00f1o", "parent_customer": "", "last_order_date": "2023-05-18", "days_since_last_order": 1034, "total_orders": 1, "lifetime_revenue": 156.0, "first_order_date": "2023-05-18"}, {"customer": "Gregory Pappas", "parent_customer": "", "last_order_date": "2023-07-19", "days_since_last_order": 972, "total_orders": 1, "lifetime_revenue": 150.0, "first_order_date": "2023-07-19"}, {"customer": "Roxanna Perez", "parent_customer": "", "last_order_date": "2023-09-11", "days_since_last_order": 918, "total_orders": 2, "lifetime_revenue": 140.0, "first_order_date": "2023-05-22"}, {"customer": "Zuzu's Kitchen", "parent_customer": "", "last_order_date": "2025-02-17", "days_since_last_order": 393, "total_orders": 1, "lifetime_revenue": 140.0, "first_order_date": "2025-02-17"}, {"customer": "Main Squeeze - Sterling Building", "parent_customer": "", "last_order_date": "2024-04-14", "days_since_last_order": 702, "total_orders": 1, "lifetime_revenue": 140.0, "first_order_date": "2024-04-14"}, {"customer": "Lauletta Birnbaum, LLC", "parent_customer": "", "last_order_date": "2025-07-27", "days_since_last_order": 233, "total_orders": 1, "lifetime_revenue": 130.0, "first_order_date": "2025-07-27"}, {"customer": "Luis Porto", "parent_customer": "", "last_order_date": "2025-08-05", "days_since_last_order": 224, "total_orders": 2, "lifetime_revenue": 120.0, "first_order_date": "2025-07-10"}, {"customer": "JoJo's Water Ice (deleted)", "parent_customer": "", "last_order_date": "2023-07-13", "days_since_last_order": 978, "total_orders": 1, "lifetime_revenue": 120.0, "first_order_date": "2023-07-13"}, {"customer": "Callowhill Greens", "parent_customer": "", "last_order_date": "2024-02-04", "days_since_last_order": 772, "total_orders": 1, "lifetime_revenue": 110.0, "first_order_date": "2024-02-04"}, {"customer": "Poseidon Pizza (deleted)", "parent_customer": "", "last_order_date": "2023-06-20", "days_since_last_order": 1001, "total_orders": 1, "lifetime_revenue": 110.0, "first_order_date": "2023-06-20"}, {"customer": "McSpirit Search, LLC", "parent_customer": "", "last_order_date": "2023-08-31", "days_since_last_order": 929, "total_orders": 1, "lifetime_revenue": 100.0, "first_order_date": "2023-08-31"}, {"customer": "Vasanti Health", "parent_customer": "", "last_order_date": "2023-12-06", "days_since_last_order": 832, "total_orders": 1, "lifetime_revenue": 75.0, "first_order_date": "2023-12-06"}, {"customer": "L. Wayles Wilson", "parent_customer": "", "last_order_date": "2023-09-17", "days_since_last_order": 912, "total_orders": 1, "lifetime_revenue": 70.0, "first_order_date": "2023-09-17"}, {"customer": "Jonathan Arena", "parent_customer": "", "last_order_date": "2023-01-27", "days_since_last_order": 1145, "total_orders": 1, "lifetime_revenue": 60.0, "first_order_date": "2023-01-27"}, {"customer": "Jerry's Bar", "parent_customer": "", "last_order_date": "2025-05-05", "days_since_last_order": 316, "total_orders": 1, "lifetime_revenue": 58.0, "first_order_date": "2025-05-05"}, {"customer": "Primary Plant Based (deleted)", "parent_customer": "", "last_order_date": "2023-01-09", "days_since_last_order": 1163, "total_orders": 1, "lifetime_revenue": 42.75, "first_order_date": "2023-01-09"}, {"customer": "Dript Coffee", "parent_customer": "", "last_order_date": "2023-01-19", "days_since_last_order": 1153, "total_orders": 3, "lifetime_revenue": 40.0, "first_order_date": "2023-01-03"}, {"customer": "Judith Marged", "parent_customer": "", "last_order_date": "2024-05-20", "days_since_last_order": 666, "total_orders": 1, "lifetime_revenue": 33.0, "first_order_date": "2024-05-20"}, {"customer": "PJ Agbay", "parent_customer": "", "last_order_date": "2024-10-28", "days_since_last_order": 505, "total_orders": 1, "lifetime_revenue": 25.0, "first_order_date": "2024-10-28"}, {"customer": "Local PHL Market (deleted)", "parent_customer": "", "last_order_date": "2023-06-30", "days_since_last_order": 991, "total_orders": 1, "lifetime_revenue": 9.5, "first_order_date": "2023-06-30"}], "at_risk_customers": [{"customer": "Rebel & Wolf", "recent_orders": 12, "recent_revenue": 13159.75, "prior_orders": 14, "prior_revenue": 16949.25, "revenue_change_pct": -22.4}, {"customer": "Homegrown Coffee and Creations - Hicks & Porter", "recent_orders": 13, "recent_revenue": 9870.0, "prior_orders": 14, "prior_revenue": 12620.0, "revenue_change_pct": -21.8}, {"customer": "Up-Ryes Bagels", "recent_orders": 13, "recent_revenue": 8895.0, "prior_orders": 12, "prior_revenue": 11133.25, "revenue_change_pct": -20.1}, {"customer": "Her Daughters Cafe", "recent_orders": 2, "recent_revenue": 1008.0, "prior_orders": 5, "prior_revenue": 2520.0, "revenue_change_pct": -60.0}, {"customer": "Schlesinger's", "recent_orders": 10, "recent_revenue": 2538.75, "prior_orders": 16, "prior_revenue": 3450.0, "revenue_change_pct": -26.4}, {"customer": "Performance Food Centers", "recent_orders": 3, "recent_revenue": 2610.0, "prior_orders": 4, "prior_revenue": 3460.0, "revenue_change_pct": -24.6}, {"customer": "Be Wellfed", "recent_orders": 3, "recent_revenue": 450.0, "prior_orders": 6, "prior_revenue": 1188.0, "revenue_change_pct": -62.1}, {"customer": "The Bagel Shop", "recent_orders": 1, "recent_revenue": 381.0, "prior_orders": 3, "prior_revenue": 1051.5, "revenue_change_pct": -63.8}, {"customer": "Ellie & Bird", "recent_orders": 13, "recent_revenue": 9815.5, "prior_orders": 12, "prior_revenue": 10433.75, "revenue_change_pct": -5.9}, {"customer": "Bagelati - Long Island", "recent_orders": 2, "recent_revenue": 520.0, "prior_orders": 2, "prior_revenue": 1125.0, "revenue_change_pct": -53.8}, {"customer": "Piazza Alta", "recent_orders": 3, "recent_revenue": 2080.0, "prior_orders": 4, "prior_revenue": 2600.0, "revenue_change_pct": -20.0}, {"customer": "Industrious Two Liberty Place", "recent_orders": 2, "recent_revenue": 1515.0, "prior_orders": 3, "prior_revenue": 2032.5, "revenue_change_pct": -25.5}, {"customer": "Brushwork Cafe", "recent_orders": 4, "recent_revenue": 1167.5, "prior_orders": 6, "prior_revenue": 1681.0, "revenue_change_pct": -30.5}, {"customer": "Angels Cafe", "recent_orders": 6, "recent_revenue": 1080.0, "prior_orders": 9, "prior_revenue": 1570.0, "revenue_change_pct": -31.2}, {"customer": "McGillin's Olde Ale House", "recent_orders": 8, "recent_revenue": 1530.0, "prior_orders": 8, "prior_revenue": 1980.0, "revenue_change_pct": -22.7}, {"customer": "Capriccio at Cret Park", "recent_orders": 5, "recent_revenue": 2652.5, "prior_orders": 6, "prior_revenue": 3097.5, "revenue_change_pct": -14.4}, {"customer": "Sit & Stay Cafe", "recent_orders": 1, "recent_revenue": 198.75, "prior_orders": 2, "prior_revenue": 631.5, "revenue_change_pct": -68.5}, {"customer": "Brunch", "recent_orders": 13, "recent_revenue": 5434.5, "prior_orders": 13, "prior_revenue": 5864.75, "revenue_change_pct": -7.3}, {"customer": "Chick's Philly", "recent_orders": 2, "recent_revenue": 310.0, "prior_orders": 3, "prior_revenue": 714.0, "revenue_change_pct": -56.6}, {"customer": "Breadcrumbs Bakery (Toasty's Cafe)", "recent_orders": 6, "recent_revenue": 2008.25, "prior_orders": 6, "prior_revenue": 2392.0, "revenue_change_pct": -16.0}, {"customer": "Bagelati - Cinnaminson", "recent_orders": 6, "recent_revenue": 2880.0, "prior_orders": 7, "prior_revenue": 3250.0, "revenue_change_pct": -11.4}, {"customer": "Juicery on 4th", "recent_orders": 4, "recent_revenue": 2520.0, "prior_orders": 7, "prior_revenue": 2885.0, "revenue_change_pct": -12.7}, {"customer": "Celine", "recent_orders": 3, "recent_revenue": 1054.8, "prior_orders": 4, "prior_revenue": 1406.4, "revenue_change_pct": -25.0}, {"customer": "OTG PHL B - MANAGEMENT", "recent_orders": 14, "recent_revenue": 9576.0, "prior_orders": 15, "prior_revenue": 9918.0, "revenue_change_pct": -3.4}, {"customer": "Loco Pez West", "recent_orders": 3, "recent_revenue": 708.0, "prior_orders": 3, "prior_revenue": 1050.0, "revenue_change_pct": -32.6}, {"customer": "Johnny Brenda's", "recent_orders": 2, "recent_revenue": 780.0, "prior_orders": 1, "prior_revenue": 1117.2, "revenue_change_pct": -30.2}, {"customer": "Bagel Spot - Cherry Hill", "recent_orders": 2, "recent_revenue": 540.0, "prior_orders": 3, "prior_revenue": 810.0, "revenue_change_pct": -33.3}, {"customer": "Buzz Cafe LLC", "recent_orders": 13, "recent_revenue": 3157.0, "prior_orders": 12, "prior_revenue": 3408.0, "revenue_change_pct": -7.4}, {"customer": "Indego", "recent_orders": 2, "recent_revenue": 500.0, "prior_orders": 3, "prior_revenue": 750.0, "revenue_change_pct": -33.3}, {"customer": "Cafe Collazo", "recent_orders": 1, "recent_revenue": 270.0, "prior_orders": 1, "prior_revenue": 495.0, "revenue_change_pct": -45.5}, {"customer": "Win Win Coffee Bar", "recent_orders": 2, "recent_revenue": 484.5, "prior_orders": 3, "prior_revenue": 698.25, "revenue_change_pct": -30.6}, {"customer": "Deli on 4th", "recent_orders": 6, "recent_revenue": 2222.5, "prior_orders": 5, "prior_revenue": 2422.5, "revenue_change_pct": -8.3}, {"customer": "Industrious Broad Street", "recent_orders": 2, "recent_revenue": 372.5, "prior_orders": 3, "prior_revenue": 558.75, "revenue_change_pct": -33.3}, {"customer": "Cafe y Chocolate", "recent_orders": 9, "recent_revenue": 2000.0, "prior_orders": 12, "prior_revenue": 2178.0, "revenue_change_pct": -8.2}, {"customer": "Milkboy - South St", "recent_orders": 4, "recent_revenue": 703.2, "prior_orders": 5, "prior_revenue": 879.0, "revenue_change_pct": -20.0}, {"customer": "Bake Shop on 20th", "recent_orders": 11, "recent_revenue": 1975.0, "prior_orders": 11, "prior_revenue": 2107.5, "revenue_change_pct": -6.3}, {"customer": "Loco Pez Fishtown", "recent_orders": 3, "recent_revenue": 534.0, "prior_orders": 4, "prior_revenue": 653.0, "revenue_change_pct": -18.2}, {"customer": "Sunday Girl", "recent_orders": 10, "recent_revenue": 2087.75, "prior_orders": 9, "prior_revenue": 2203.25, "revenue_change_pct": -5.2}, {"customer": "Montague Street Bagels", "recent_orders": 10, "recent_revenue": 2060.0, "prior_orders": 11, "prior_revenue": 2135.0, "revenue_change_pct": -3.5}, {"customer": "1001 Residences", "recent_orders": 5, "recent_revenue": 4875.0, "prior_orders": 6, "prior_revenue": 4940.0, "revenue_change_pct": -1.3}, {"customer": "Bond Collective - 1635 Market St.", "recent_orders": 3, "recent_revenue": 790.0, "prior_orders": 3, "prior_revenue": 795.0, "revenue_change_pct": -0.6}, {"customer": "Fitz on Fourth", "recent_orders": 1, "recent_revenue": 260.0, "prior_orders": 2, "prior_revenue": 261.25, "revenue_change_pct": -0.5}], "top_customers": [{"customer": "Homegrown Coffee and Creations - Hicks & Porter", "parent_customer": "", "lifetime_revenue": 156353.5, "total_orders": 180, "first_order": "2023-01-03", "last_order": "2026-03-10", "days_since_last": 7, "unique_products": 38, "avg_order_value": 868.63}, {"customer": "Rebel & Wolf", "parent_customer": "", "lifetime_revenue": 143187.25, "total_orders": 160, "first_order": "2023-05-31", "last_order": "2026-03-10", "days_since_last": 7, "unique_products": 33, "avg_order_value": 894.92}, {"customer": "Up-Ryes Bagels", "parent_customer": "", "lifetime_revenue": 129117.91, "total_orders": 172, "first_order": "2023-01-04", "last_order": "2026-03-11", "days_since_last": 6, "unique_products": 36, "avg_order_value": 750.69}, {"customer": "OTG PHL B - MANAGEMENT", "parent_customer": "", "lifetime_revenue": 114991.0, "total_orders": 228, "first_order": "2023-01-05", "last_order": "2026-03-06", "days_since_last": 11, "unique_products": 2, "avg_order_value": 504.35}, {"customer": "The Rounds", "parent_customer": "", "lifetime_revenue": 93233.81, "total_orders": 95, "first_order": "2023-01-05", "last_order": "2025-04-01", "days_since_last": 350, "unique_products": 21, "avg_order_value": 981.41}, {"customer": "Brunch", "parent_customer": "", "lifetime_revenue": 64754.25, "total_orders": 156, "first_order": "2023-01-06", "last_order": "2026-03-13", "days_since_last": 4, "unique_products": 17, "avg_order_value": 415.09}, {"customer": "Ellie & Bird", "parent_customer": "", "lifetime_revenue": 43720.0, "total_orders": 56, "first_order": "2025-02-20", "last_order": "2026-03-11", "days_since_last": 6, "unique_products": 18, "avg_order_value": 780.71}, {"customer": "Westmont Bagel", "parent_customer": "", "lifetime_revenue": 42529.0, "total_orders": 91, "first_order": "2023-01-09", "last_order": "2026-03-04", "days_since_last": 13, "unique_products": 12, "avg_order_value": 467.35}, {"customer": "Buzz Cafe LLC", "parent_customer": "", "lifetime_revenue": 39058.75, "total_orders": 175, "first_order": "2023-01-06", "last_order": "2026-03-11", "days_since_last": 6, "unique_products": 12, "avg_order_value": 223.19}, {"customer": "Performance Food Centers", "parent_customer": "", "lifetime_revenue": 37890.0, "total_orders": 48, "first_order": "2023-01-19", "last_order": "2026-03-16", "days_since_last": 1, "unique_products": 1, "avg_order_value": 789.38}, {"customer": "Deli on 4th", "parent_customer": "", "lifetime_revenue": 36907.15, "total_orders": 128, "first_order": "2023-01-03", "last_order": "2026-03-11", "days_since_last": 6, "unique_products": 43, "avg_order_value": 288.34}, {"customer": "Bake Shop on 20th", "parent_customer": "", "lifetime_revenue": 35807.75, "total_orders": 154, "first_order": "2023-01-03", "last_order": "2026-03-10", "days_since_last": 7, "unique_products": 10, "avg_order_value": 232.52}, {"customer": "Bagelati - Cinnaminson", "parent_customer": "", "lifetime_revenue": 34241.7, "total_orders": 112, "first_order": "2023-01-09", "last_order": "2026-03-11", "days_since_last": 6, "unique_products": 10, "avg_order_value": 305.73}, {"customer": "Village Bagels", "parent_customer": "", "lifetime_revenue": 34051.5, "total_orders": 85, "first_order": "2023-01-17", "last_order": "2026-03-10", "days_since_last": 7, "unique_products": 10, "avg_order_value": 400.61}, {"customer": "Schlesinger's", "parent_customer": "", "lifetime_revenue": 31944.03, "total_orders": 157, "first_order": "2023-01-06", "last_order": "2026-02-26", "days_since_last": 19, "unique_products": 8, "avg_order_value": 203.47}, {"customer": "Elcy's Cafe", "parent_customer": "", "lifetime_revenue": 31423.0, "total_orders": 39, "first_order": "2023-09-12", "last_order": "2025-06-11", "days_since_last": 279, "unique_products": 9, "avg_order_value": 805.72}, {"customer": "Riverwards Norris St. (Fishtown)", "parent_customer": "", "lifetime_revenue": 31372.0, "total_orders": 107, "first_order": "2023-01-09", "last_order": "2026-03-16", "days_since_last": 1, "unique_products": 13, "avg_order_value": 293.2}, {"customer": "Capriccio at Cret Park", "parent_customer": "", "lifetime_revenue": 30964.55, "total_orders": 76, "first_order": "2023-03-07", "last_order": "2026-03-12", "days_since_last": 5, "unique_products": 8, "avg_order_value": 407.43}, {"customer": "The Atlantic", "parent_customer": "", "lifetime_revenue": 27807.5, "total_orders": 41, "first_order": "2023-05-10", "last_order": "2026-02-24", "days_since_last": 21, "unique_products": 3, "avg_order_value": 678.23}, {"customer": "Montague Street Bagels", "parent_customer": "", "lifetime_revenue": 26842.25, "total_orders": 155, "first_order": "2023-01-05", "last_order": "2026-03-05", "days_since_last": 12, "unique_products": 15, "avg_order_value": 173.18}, {"customer": "Her Daughters Cafe", "parent_customer": "", "lifetime_revenue": 24306.0, "total_orders": 56, "first_order": "2023-01-10", "last_order": "2026-02-03", "days_since_last": 42, "unique_products": 3, "avg_order_value": 434.04}, {"customer": "Juicery on 4th", "parent_customer": "", "lifetime_revenue": 23733.0, "total_orders": 115, "first_order": "2023-01-03", "last_order": "2026-03-11", "days_since_last": 6, "unique_products": 19, "avg_order_value": 206.37}, {"customer": "Bond Collective - 1617 JFK Blvd.", "parent_customer": "", "lifetime_revenue": 22095.75, "total_orders": 53, "first_order": "2023-01-05", "last_order": "2026-03-04", "days_since_last": 13, "unique_products": 15, "avg_order_value": 416.9}, {"customer": "Industrious Two Liberty Place", "parent_customer": "", "lifetime_revenue": 21684.5, "total_orders": 65, "first_order": "2023-01-26", "last_order": "2026-02-06", "days_since_last": 39, "unique_products": 5, "avg_order_value": 333.61}, {"customer": "Philly Bagels - Passyunk Ave.", "parent_customer": "", "lifetime_revenue": 21605.3, "total_orders": 67, "first_order": "2023-01-09", "last_order": "2024-09-03", "days_since_last": 560, "unique_products": 12, "avg_order_value": 322.47}], "product_mix": [{"product": "76 Espresso:5LB - Whole Bean", "unique_customers": 37, "times_ordered": 1468, "total_units": 4586.0, "total_revenue": 282495.25, "avg_price": 61.76, "revenue_share_pct": 14.3}, {"product": "Cold Brew Concentrate 32oz.", "unique_customers": 51, "times_ordered": 968, "total_units": 17108.0, "total_revenue": 242328.45, "avg_price": 14.18, "revenue_share_pct": 12.2}, {"product": "Franklin Reserve (5 lbs) - Whole Bean", "unique_customers": 42, "times_ordered": 1198, "total_units": 4182.0, "total_revenue": 233080.25, "avg_price": 55.86, "revenue_share_pct": 11.8}, {"product": "Schuylkill Select - Whole Bean:5lb", "unique_customers": 44, "times_ordered": 860, "total_units": 3432.0, "total_revenue": 186500.0, "avg_price": 54.81, "revenue_share_pct": 9.4}, {"product": "76 Espresso:5LB - Ground Coarse", "unique_customers": 26, "times_ordered": 1118, "total_units": 2957.0, "total_revenue": 179504.5, "avg_price": 60.42, "revenue_share_pct": 9.1}, {"product": "Chai:David Rio Tiger Spice Chai (4lb)", "unique_customers": 14, "times_ordered": 528, "total_units": 2071.0, "total_revenue": 88462.0, "avg_price": 42.9, "revenue_share_pct": 4.5}, {"product": "Italian Market Espresso (5 lbs) - Whole Bean", "unique_customers": 26, "times_ordered": 476, "total_units": 1136.0, "total_revenue": 60767.75, "avg_price": 54.0, "revenue_share_pct": 3.1}, {"product": "Schuylkill Select - Ground - Drip:3oz Frac Pack (42ct)", "unique_customers": 27, "times_ordered": 353, "total_units": 850.0, "total_revenue": 60571.0, "avg_price": 71.09, "revenue_share_pct": 3.1}, {"product": "Schuylkill Select - Whole Bean:12oz", "unique_customers": 36, "times_ordered": 542, "total_units": 4271.0, "total_revenue": 43609.25, "avg_price": 10.58, "revenue_share_pct": 2.2}, {"product": "Colombia Tolima - Organic:5LB - Whole Bean", "unique_customers": 20, "times_ordered": 279, "total_units": 708.0, "total_revenue": 41288.0, "avg_price": 59.27, "revenue_share_pct": 2.1}, {"product": "Organic Espresso:12oz - Whole Bean - PFC Espresso Blend", "unique_customers": 1, "times_ordered": 48, "total_units": 4800.0, "total_revenue": 37890.0, "avg_price": 7.89, "revenue_share_pct": 1.9}, {"product": "Schuylkill Select - Whole Bean:Schuylkill Select - Whole Bean", "unique_customers": 1, "times_ordered": 51, "total_units": 3910.0, "total_revenue": 32049.5, "avg_price": 8.25, "revenue_share_pct": 1.6}, {"product": "Olde City Decaf - 5LB - WHOLE BEAN", "unique_customers": 23, "times_ordered": 442, "total_units": 559.5, "total_revenue": 31989.63, "avg_price": 57.08, "revenue_share_pct": 1.6}, {"product": "Schuylkill Select - Ground - Drip:Schuylkill Select - Ground - Drip", "unique_customers": 4, "times_ordered": 49, "total_units": 3282.0, "total_revenue": 27964.5, "avg_price": 17.45, "revenue_share_pct": 1.4}, {"product": "Chai:David Rio - Tiger Spice Chai (4LB x 4) (Case)", "unique_customers": 8, "times_ordered": 104, "total_units": 134.0, "total_revenue": 23624.0, "avg_price": 177.31, "revenue_share_pct": 1.2}, {"product": "Honduras Marcala:5lb - Whole Bean (deleted)", "unique_customers": 17, "times_ordered": 142, "total_units": 387.0, "total_revenue": 20123.5, "avg_price": 51.3, "revenue_share_pct": 1.0}, {"product": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "unique_customers": 33, "times_ordered": 343, "total_units": 1795.0, "total_revenue": 18367.75, "avg_price": 11.14, "revenue_share_pct": 0.9}, {"product": "Honduras Copan:5lb - Whole Bean (deleted)", "unique_customers": 11, "times_ordered": 133, "total_units": 322.0, "total_revenue": 17500.0, "avg_price": 53.34, "revenue_share_pct": 0.9}, {"product": "Schuylkill Select - Ground - Drip:5lb", "unique_customers": 10, "times_ordered": 143, "total_units": 327.0, "total_revenue": 17030.5, "avg_price": 51.75, "revenue_share_pct": 0.9}, {"product": "Costa Rican Tarrazu:Costa Rican Tarrazu - 5lb - Whole Bean", "unique_customers": 12, "times_ordered": 74, "total_units": 289.0, "total_revenue": 16561.25, "avg_price": 56.66, "revenue_share_pct": 0.8}, {"product": "76 Espresso:12oz - Whole Bean", "unique_customers": 16, "times_ordered": 287, "total_units": 1479.0, "total_revenue": 15880.5, "avg_price": 11.21, "revenue_share_pct": 0.8}, {"product": "Guatemala Antigua (5lbs) - Whole Bean", "unique_customers": 8, "times_ordered": 136, "total_units": 277.0, "total_revenue": 15435.0, "avg_price": 54.8, "revenue_share_pct": 0.8}, {"product": "Ethiopia Guji:Guji - 5lb - Whole Bean", "unique_customers": 7, "times_ordered": 53, "total_units": 210.0, "total_revenue": 12222.5, "avg_price": 58.82, "revenue_share_pct": 0.6}, {"product": "Franklin Reserve - 5LB - GROUND COARSE", "unique_customers": 7, "times_ordered": 55, "total_units": 189.0, "total_revenue": 11804.5, "avg_price": 61.5, "revenue_share_pct": 0.6}, {"product": "Ethiopia Guji:12oz - Whole Bean", "unique_customers": 10, "times_ordered": 163, "total_units": 1078.0, "total_revenue": 10611.5, "avg_price": 10.14, "revenue_share_pct": 0.5}, {"product": "Costa Rican Tarrazu:152 lbs", "unique_customers": 1, "times_ordered": 10, "total_units": 13.0, "total_revenue": 10573.6, "avg_price": 840.7, "revenue_share_pct": 0.5}, {"product": "French Toast Bites Coffee - 5lb - Drip Grind", "unique_customers": 8, "times_ordered": 97, "total_units": 215.0, "total_revenue": 10566.25, "avg_price": 47.5, "revenue_share_pct": 0.5}, {"product": "Cold Brew Concentrate (Espresso Martini)", "unique_customers": 1, "times_ordered": 2, "total_units": 52412.0, "total_revenue": 10482.4, "avg_price": 0.2, "revenue_share_pct": 0.5}, {"product": "South St. Roast (5 lbs) - Whole Bean", "unique_customers": 5, "times_ordered": 84, "total_units": 186.0, "total_revenue": 9640.0, "avg_price": 51.79, "revenue_share_pct": 0.5}, {"product": "Minor Figures Oat Milk - 1L (6-pack Case)", "unique_customers": 8, "times_ordered": 195, "total_units": 495.0, "total_revenue": 9171.5, "avg_price": 19.25, "revenue_share_pct": 0.5}], "new_vs_returning": [{"month": "2023-01", "new_customers": 72, "returning_customers": 0}, {"month": "2023-02", "new_customers": 25, "returning_customers": 49}, {"month": "2023-03", "new_customers": 10, "returning_customers": 69}, {"month": "2023-04", "new_customers": 3, "returning_customers": 64}, {"month": "2023-05", "new_customers": 11, "returning_customers": 73}, {"month": "2023-06", "new_customers": 7, "returning_customers": 75}, {"month": "2023-07", "new_customers": 2, "returning_customers": 69}, {"month": "2023-08", "new_customers": 5, "returning_customers": 65}, {"month": "2023-09", "new_customers": 3, "returning_customers": 72}, {"month": "2023-10", "new_customers": 0, "returning_customers": 66}, {"month": "2023-11", "new_customers": 2, "returning_customers": 65}, {"month": "2023-12", "new_customers": 2, "returning_customers": 60}, {"month": "2024-01", "new_customers": 0, "returning_customers": 65}, {"month": "2024-02", "new_customers": 6, "returning_customers": 65}, {"month": "2024-03", "new_customers": 2, "returning_customers": 67}, {"month": "2024-04", "new_customers": 3, "returning_customers": 67}, {"month": "2024-05", "new_customers": 3, "returning_customers": 67}, {"month": "2024-06", "new_customers": 3, "returning_customers": 65}, {"month": "2024-07", "new_customers": 1, "returning_customers": 66}, {"month": "2024-08", "new_customers": 2, "returning_customers": 70}, {"month": "2024-09", "new_customers": 1, "returning_customers": 61}, {"month": "2024-10", "new_customers": 4, "returning_customers": 62}, {"month": "2024-11", "new_customers": 2, "returning_customers": 60}, {"month": "2024-12", "new_customers": 2, "returning_customers": 60}, {"month": "2025-01", "new_customers": 2, "returning_customers": 66}, {"month": "2025-02", "new_customers": 3, "returning_customers": 59}, {"month": "2025-03", "new_customers": 1, "returning_customers": 64}, {"month": "2025-04", "new_customers": 3, "returning_customers": 62}, {"month": "2025-05", "new_customers": 1, "returning_customers": 66}, {"month": "2025-06", "new_customers": 2, "returning_customers": 65}, {"month": "2025-07", "new_customers": 4, "returning_customers": 63}, {"month": "2025-08", "new_customers": 0, "returning_customers": 67}, {"month": "2025-09", "new_customers": 1, "returning_customers": 68}, {"month": "2025-10", "new_customers": 1, "returning_customers": 66}, {"month": "2025-11", "new_customers": 0, "returning_customers": 57}, {"month": "2025-12", "new_customers": 3, "returning_customers": 65}, {"month": "2026-01", "new_customers": 5, "returning_customers": 62}, {"month": "2026-02", "new_customers": 1, "returning_customers": 64}, {"month": "2026-03", "new_customers": 0, "returning_customers": 48}], "customer_concentration": [{"segment": "Top 10%", "customer_count": 20, "segment_revenue": 1186196.9, "revenue_share_pct": 59.9}, {"segment": "Top 11-20%", "customer_count": 20, "segment_revenue": 338429.0, "revenue_share_pct": 17.1}, {"segment": "Top 21-50%", "customer_count": 59, "segment_revenue": 395189.86, "revenue_share_pct": 20.0}, {"segment": "Bottom 50%", "customer_count": 99, "segment_revenue": 60483.6, "revenue_share_pct": 3.1}], "cross_sell_pairs": [{"product_a": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 28, "customers_a_total": 33, "customers_b_total": 36, "pct_a_also_buy_b": 84.8, "pct_b_also_buy_a": 77.8}, {"product_a": "Franklin Reserve (5 lbs) - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:5lb", "shared_customers": 21, "customers_a_total": 42, "customers_b_total": 44, "pct_a_also_buy_b": 50.0, "pct_b_also_buy_a": 47.7}, {"product_a": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "product_b": "French Toast Bites Coffee - 12oz - Drip Grind", "shared_customers": 19, "customers_a_total": 33, "customers_b_total": 28, "pct_a_also_buy_b": 57.6, "pct_b_also_buy_a": 67.9}, {"product_a": "French Toast Bites Coffee - 12oz - Drip Grind", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 18, "customers_a_total": 28, "customers_b_total": 36, "pct_a_also_buy_b": 64.3, "pct_b_also_buy_a": 50.0}, {"product_a": "76 Espresso:5LB - Whole Bean", "product_b": "Olde City Decaf - 5LB - WHOLE BEAN", "shared_customers": 16, "customers_a_total": 37, "customers_b_total": 23, "pct_a_also_buy_b": 43.2, "pct_b_also_buy_a": 69.6}, {"product_a": "Colombia Tolima - Organic:12oz. - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 16, "customers_a_total": 19, "customers_b_total": 36, "pct_a_also_buy_b": 84.2, "pct_b_also_buy_a": 44.4}, {"product_a": "Cold Brew Concentrate 32oz.", "product_b": "Schuylkill Select - Ground - Drip:3oz Frac Pack (42ct)", "shared_customers": 16, "customers_a_total": 51, "customers_b_total": 27, "pct_a_also_buy_b": 31.4, "pct_b_also_buy_a": 59.3}, {"product_a": "76 Espresso:5LB - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:5lb", "shared_customers": 16, "customers_a_total": 37, "customers_b_total": 44, "pct_a_also_buy_b": 43.2, "pct_b_also_buy_a": 36.4}, {"product_a": "76 Espresso:5LB - Whole Bean", "product_b": "Franklin Reserve (5 lbs) - Whole Bean", "shared_customers": 15, "customers_a_total": 37, "customers_b_total": 42, "pct_a_also_buy_b": 40.5, "pct_b_also_buy_a": 35.7}, {"product_a": "76 Espresso:5LB - Ground Coarse", "product_b": "76 Espresso:5LB - Whole Bean", "shared_customers": 15, "customers_a_total": 26, "customers_b_total": 37, "pct_a_also_buy_b": 57.7, "pct_b_also_buy_a": 40.5}, {"product_a": "Colombia Tolima - Organic:12oz. - Whole Bean", "product_b": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "shared_customers": 14, "customers_a_total": 19, "customers_b_total": 33, "pct_a_also_buy_b": 73.7, "pct_b_also_buy_a": 42.4}, {"product_a": "Franklin Reserve (5 lbs) - Whole Bean", "product_b": "Olde City Decaf - 5LB - WHOLE BEAN", "shared_customers": 14, "customers_a_total": 42, "customers_b_total": 23, "pct_a_also_buy_b": 33.3, "pct_b_also_buy_a": 60.9}, {"product_a": "Olde City Decaf - 5LB - WHOLE BEAN", "product_b": "Schuylkill Select - Whole Bean:5lb", "shared_customers": 14, "customers_a_total": 23, "customers_b_total": 44, "pct_a_also_buy_b": 60.9, "pct_b_also_buy_a": 31.8}, {"product_a": "76 Espresso:12oz - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 13, "customers_a_total": 16, "customers_b_total": 36, "pct_a_also_buy_b": 81.3, "pct_b_also_buy_a": 36.1}, {"product_a": "76 Espresso:5LB - Ground Coarse", "product_b": "Alto Cold Brew Filters - 50ct", "shared_customers": 13, "customers_a_total": 26, "customers_b_total": 16, "pct_a_also_buy_b": 50.0, "pct_b_also_buy_a": 81.3}, {"product_a": "76 Espresso:5LB - Ground Coarse", "product_b": "Franklin Reserve (5 lbs) - Whole Bean", "shared_customers": 13, "customers_a_total": 26, "customers_b_total": 42, "pct_a_also_buy_b": 50.0, "pct_b_also_buy_a": 31.0}, {"product_a": "76 Espresso:5LB - Whole Bean", "product_b": "Italian Market Espresso (5 lbs) - Whole Bean", "shared_customers": 13, "customers_a_total": 37, "customers_b_total": 26, "pct_a_also_buy_b": 35.1, "pct_b_also_buy_a": 50.0}, {"product_a": "76 Espresso:12oz - Whole Bean", "product_b": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "shared_customers": 12, "customers_a_total": 16, "customers_b_total": 33, "pct_a_also_buy_b": 75.0, "pct_b_also_buy_a": 36.4}, {"product_a": "Olde City Decaf - 12oz - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 12, "customers_a_total": 16, "customers_b_total": 36, "pct_a_also_buy_b": 75.0, "pct_b_also_buy_a": 33.3}, {"product_a": "Costa Rican Tarrazu:Costa Rica Tarrazu - Whole Bean - 12oz", "product_b": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "shared_customers": 12, "customers_a_total": 13, "customers_b_total": 33, "pct_a_also_buy_b": 92.3, "pct_b_also_buy_a": 36.4}, {"product_a": "Costa Rican Tarrazu:Costa Rica Tarrazu - Whole Bean - 12oz", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 12, "customers_a_total": 13, "customers_b_total": 36, "pct_a_also_buy_b": 92.3, "pct_b_also_buy_a": 33.3}, {"product_a": "Colombia Tolima - Organic:12oz. - Whole Bean", "product_b": "Costa Rican Tarrazu:Costa Rica Tarrazu - Whole Bean - 12oz", "shared_customers": 12, "customers_a_total": 19, "customers_b_total": 13, "pct_a_also_buy_b": 63.2, "pct_b_also_buy_a": 92.3}, {"product_a": "76 Espresso:12oz - Whole Bean", "product_b": "Colombia Tolima - Organic:12oz. - Whole Bean", "shared_customers": 11, "customers_a_total": 16, "customers_b_total": 19, "pct_a_also_buy_b": 68.8, "pct_b_also_buy_a": 57.9}, {"product_a": "Colombia Tolima - Organic:5LB - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:5lb", "shared_customers": 11, "customers_a_total": 20, "customers_b_total": 44, "pct_a_also_buy_b": 55.0, "pct_b_also_buy_a": 25.0}, {"product_a": "76 Espresso:12oz - Whole Bean", "product_b": "76 Espresso:5LB - Whole Bean", "shared_customers": 11, "customers_a_total": 16, "customers_b_total": 37, "pct_a_also_buy_b": 68.8, "pct_b_also_buy_a": 29.7}, {"product_a": "Bunn Filters - 20138.1000 - 1.5 Gallon Coffee Filters (500ct)", "product_b": "Franklin Reserve (5 lbs) - Whole Bean", "shared_customers": 11, "customers_a_total": 17, "customers_b_total": 42, "pct_a_also_buy_b": 64.7, "pct_b_also_buy_a": 26.2}, {"product_a": "Cold Brew Concentrate 32oz.", "product_b": "Schuylkill Select - Whole Bean:5lb", "shared_customers": 11, "customers_a_total": 51, "customers_b_total": 44, "pct_a_also_buy_b": 21.6, "pct_b_also_buy_a": 25.0}, {"product_a": "PAWS Roast - 12oz - Whole Bean", "product_b": "Schuylkill Select - Whole Bean:12oz", "shared_customers": 10, "customers_a_total": 10, "customers_b_total": 36, "pct_a_also_buy_b": 100.0, "pct_b_also_buy_a": 27.8}, {"product_a": "76 Espresso:5LB - Whole Bean", "product_b": "Chai:David Rio Tiger Spice Chai (4lb)", "shared_customers": 10, "customers_a_total": 37, "customers_b_total": 14, "pct_a_also_buy_b": 27.0, "pct_b_also_buy_a": 71.4}, {"product_a": "Colombia Tolima - Organic:5LB - Whole Bean", "product_b": "Franklin Reserve (5 lbs) - Whole Bean", "shared_customers": 10, "customers_a_total": 20, "customers_b_total": 42, "pct_a_also_buy_b": 50.0, "pct_b_also_buy_a": 23.8}], "cross_sell_opportunities": [{"customer": "Homegrown Coffee and Creations - Hicks & Porter", "lifetime_revenue": 156353.5, "currently_buys": "Schuylkill Select - Whole Bean:5lb", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 21}, {"customer": "Homegrown Coffee and Creations - Hicks & Porter", "lifetime_revenue": 156353.5, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 16}, {"customer": "Homegrown Coffee and Creations - Hicks & Porter", "lifetime_revenue": 156353.5, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 15}, {"customer": "Homegrown Coffee and Creations - Hicks & Porter", "lifetime_revenue": 156353.5, "currently_buys": "Schuylkill Select - Whole Bean:5lb", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 14}, {"customer": "Homegrown Coffee and Creations - Hicks & Porter", "lifetime_revenue": 156353.5, "currently_buys": "76 Espresso:5LB - Ground Coarse", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 13}, {"customer": "Rebel & Wolf", "lifetime_revenue": 143187.25, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "76 Espresso:5LB - Ground Coarse", "pair_strength": 15}, {"customer": "Rebel & Wolf", "lifetime_revenue": 143187.25, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "76 Espresso:5LB - Ground Coarse", "pair_strength": 13}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "Schuylkill Select - Whole Bean:12oz", "recommend_product": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "pair_strength": 28}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 21}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "Schuylkill Select - Whole Bean:12oz", "recommend_product": "French Toast Bites Coffee - 12oz - Drip Grind", "pair_strength": 18}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 16}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "Schuylkill Select - Whole Bean:12oz", "recommend_product": "Colombia Tolima - Organic:12oz. - Whole Bean", "pair_strength": 16}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 16}, {"customer": "Up-Ryes Bagels", "lifetime_revenue": 129117.91, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 14}, {"customer": "OTG PHL B - MANAGEMENT", "lifetime_revenue": 114991.0, "currently_buys": "Schuylkill Select - Whole Bean:5lb", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 21}, {"customer": "OTG PHL B - MANAGEMENT", "lifetime_revenue": 114991.0, "currently_buys": "Schuylkill Select - Whole Bean:5lb", "recommend_product": "76 Espresso:5LB - Whole Bean", "pair_strength": 16}, {"customer": "OTG PHL B - MANAGEMENT", "lifetime_revenue": 114991.0, "currently_buys": "Cold Brew Concentrate 32oz.", "recommend_product": "Schuylkill Select - Ground - Drip:3oz Frac Pack (42ct)", "pair_strength": 16}, {"customer": "OTG PHL B - MANAGEMENT", "lifetime_revenue": 114991.0, "currently_buys": "Schuylkill Select - Whole Bean:5lb", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 14}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "Schuylkill Select - Whole Bean:12oz", "recommend_product": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "pair_strength": 28}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "Schuylkill Select - Whole Bean:5lb", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 21}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "Schuylkill Select - Whole Bean:12oz", "recommend_product": "French Toast Bites Coffee - 12oz - Drip Grind", "pair_strength": 18}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "Schuylkill Select - Whole Bean:12oz", "recommend_product": "Colombia Tolima - Organic:12oz. - Whole Bean", "pair_strength": 16}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 15}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "Olde City Decaf - 5LB - WHOLE BEAN", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 14}, {"customer": "Brunch", "lifetime_revenue": 64754.25, "currently_buys": "76 Espresso:5LB - Ground Coarse", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 13}, {"customer": "Westmont Bagel", "lifetime_revenue": 42529.0, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 21}, {"customer": "Westmont Bagel", "lifetime_revenue": 42529.0, "currently_buys": "Cold Brew Concentrate 32oz.", "recommend_product": "Schuylkill Select - Ground - Drip:3oz Frac Pack (42ct)", "pair_strength": 16}, {"customer": "Westmont Bagel", "lifetime_revenue": 42529.0, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "76 Espresso:5LB - Whole Bean", "pair_strength": 15}, {"customer": "Westmont Bagel", "lifetime_revenue": 42529.0, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 14}, {"customer": "Westmont Bagel", "lifetime_revenue": 42529.0, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "76 Espresso:5LB - Ground Coarse", "pair_strength": 13}, {"customer": "Buzz Cafe LLC", "lifetime_revenue": 39058.75, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 21}, {"customer": "Buzz Cafe LLC", "lifetime_revenue": 39058.75, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 16}, {"customer": "Buzz Cafe LLC", "lifetime_revenue": 39058.75, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 16}, {"customer": "Buzz Cafe LLC", "lifetime_revenue": 39058.75, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 14}, {"customer": "Deli on 4th", "lifetime_revenue": 36907.15, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 21}, {"customer": "Deli on 4th", "lifetime_revenue": 36907.15, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 16}, {"customer": "Deli on 4th", "lifetime_revenue": 36907.15, "currently_buys": "Schuylkill Select - Ground - Drip:3oz Frac Pack (42ct)", "recommend_product": "Cold Brew Concentrate 32oz.", "pair_strength": 16}, {"customer": "Deli on 4th", "lifetime_revenue": 36907.15, "currently_buys": "Olde City Decaf - 5LB - WHOLE BEAN", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 14}, {"customer": "Bake Shop on 20th", "lifetime_revenue": 35807.75, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 16}, {"customer": "Bake Shop on 20th", "lifetime_revenue": 35807.75, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 16}, {"customer": "Bake Shop on 20th", "lifetime_revenue": 35807.75, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 15}, {"customer": "Bake Shop on 20th", "lifetime_revenue": 35807.75, "currently_buys": "76 Espresso:5LB - Ground Coarse", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 13}, {"customer": "Bagelati - Cinnaminson", "lifetime_revenue": 34241.7, "currently_buys": "French Toast Bites Coffee - 12oz - Drip Grind", "recommend_product": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "pair_strength": 19}, {"customer": "Bagelati - Cinnaminson", "lifetime_revenue": 34241.7, "currently_buys": "French Toast Bites Coffee - 12oz - Drip Grind", "recommend_product": "Schuylkill Select - Whole Bean:12oz", "pair_strength": 18}, {"customer": "Bagelati - Cinnaminson", "lifetime_revenue": 34241.7, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Olde City Decaf - 5LB - WHOLE BEAN", "pair_strength": 16}, {"customer": "Bagelati - Cinnaminson", "lifetime_revenue": 34241.7, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 16}, {"customer": "Bagelati - Cinnaminson", "lifetime_revenue": 34241.7, "currently_buys": "76 Espresso:5LB - Whole Bean", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 15}, {"customer": "Bagelati - Cinnaminson", "lifetime_revenue": 34241.7, "currently_buys": "76 Espresso:5LB - Ground Coarse", "recommend_product": "Franklin Reserve (5 lbs) - Whole Bean", "pair_strength": 13}, {"customer": "Village Bagels", "lifetime_revenue": 34051.5, "currently_buys": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:12oz", "pair_strength": 28}, {"customer": "Village Bagels", "lifetime_revenue": 34051.5, "currently_buys": "Franklin Reserve (5 lbs) - Whole Bean", "recommend_product": "Schuylkill Select - Whole Bean:5lb", "pair_strength": 21}], "product_adoption_ladder": [{"entry_product": "Cold Brew Concentrate 32oz.", "total_entries": 27, "expansion_product": "Schuylkill Select - Ground - Drip:3oz Frac Pack (42ct)", "customers_expanded": 6, "expansion_rate_pct": 22.2}, {"entry_product": "Cold Brew Concentrate 32oz.", "total_entries": 27, "expansion_product": "Olde City Decaf - 12oz - Drip Grind", "customers_expanded": 3, "expansion_rate_pct": 11.1}, {"entry_product": "Cold Brew Concentrate 32oz.", "total_entries": 27, "expansion_product": "Schuylkill Select - Ground - Drip:5lb", "customers_expanded": 3, "expansion_rate_pct": 11.1}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Schuylkill Select - Whole Bean:5lb", "customers_expanded": 8, "expansion_rate_pct": 50.0}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Olde City Decaf - 5LB - WHOLE BEAN", "customers_expanded": 7, "expansion_rate_pct": 43.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "76 Espresso:5LB - Ground Coarse", "customers_expanded": 7, "expansion_rate_pct": 43.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "76 Espresso:12oz - Whole Bean", "customers_expanded": 5, "expansion_rate_pct": 31.3}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Franklin Reserve:Franklin Reserve (12oz) - Whole Bean", "customers_expanded": 5, "expansion_rate_pct": 31.3}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Schuylkill Select - Whole Bean:12oz", "customers_expanded": 4, "expansion_rate_pct": 25.0}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Chai:David Rio - Tiger Spice Chai (4LB x 4) (Case)", "customers_expanded": 4, "expansion_rate_pct": 25.0}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Franklin Reserve (5 lbs) - Whole Bean", "customers_expanded": 4, "expansion_rate_pct": 25.0}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Chai:David Rio Tiger Spice Chai (4lb)", "customers_expanded": 4, "expansion_rate_pct": 25.0}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Colombia Tolima - Organic:12oz. - Whole Bean", "customers_expanded": 3, "expansion_rate_pct": 18.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Alto Cold Brew Filters - 50ct", "customers_expanded": 3, "expansion_rate_pct": 18.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Schuylkill Select - Ground - Drip:12oz", "customers_expanded": 3, "expansion_rate_pct": 18.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Olde City Decaf - 12oz - Whole Bean", "customers_expanded": 3, "expansion_rate_pct": 18.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Ethiopia Sidamo - 12oz - Whole Bean", "customers_expanded": 3, "expansion_rate_pct": 18.8}, {"entry_product": "76 Espresso:5LB - Whole Bean", "total_entries": 16, "expansion_product": "Colombia Tolima - Organic:12oz - Ground Drip", "customers_expanded": 3, "expansion_rate_pct": 18.8}, {"entry_product": "Franklin Reserve (5 lbs) - Whole Bean", "total_entries": 15, "expansion_product": "Schuylkill Select - Whole Bean:5lb", "customers_expanded": 5, "expansion_rate_pct": 33.3}, {"entry_product": "Franklin Reserve (5 lbs) - Whole Bean", "total_entries": 15, "expansion_product": "Olde City Decaf - 5LB - WHOLE BEAN", "customers_expanded": 5, "expansion_rate_pct": 33.3}]}}};
+
+const PASS_HASH = 'fd3d40ca96c5dcbce204f7cf298e61e11c47d0b821e91a786c1211f0f02d65b8';
+
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const pw = document.getElementById('loginPassword').value;
+  const hash = await sha256(pw);
+  if (hash === PASS_HASH) {
+    sessionStorage.setItem('books_os_auth', 'true');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    initDashboard();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginPassword').focus();
+  }
+  return false;
+}
+
+// Check if already authenticated this session
+if (sessionStorage.getItem('books_os_auth') === 'true') {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    initDashboard();
+  });
+}
+
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+let DATA = null;
+let FULL_DATA = null;  // unfiltered cache
+let charts = {};
+let currentClient = null;
+let dateRange = { min: null, max: null };
+
+const CLIENT_DISPLAY = {
+  'bean2bean': 'Bean <span>2</span> Bean',
+  'safilo': 'Safilo',
+};
+function clientTitle(key) { return CLIENT_DISPLAY[key] || key.charAt(0).toUpperCase() + key.slice(1); }
+
+const COLORS = {
+  accent: '#6c5ce7', green: '#00cec9', red: '#ff6b6b',
+  orange: '#fdcb6e', blue: '#74b9ff', pink: '#fd79a8',
+  purple: '#a29bfe', teal: '#55efc4'
+};
+
+Chart.defaults.color = '#8b8fa3';
+Chart.defaults.borderColor = '#2e3345';
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+
+function fmt(n) { return '$' + n.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+function fmtD(n) { return '$' + n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+
+async function loadData() {
+  // Try loading all analysis JSON files from the output directory
+  const clients = [];
+  // We'll load from a served endpoint or inline
+  try {
+    const resp = await fetch('/api/clients');
+    const data = await resp.json();
+    return data;
+  } catch(e) {
+    // Fallback: try loading from known path
+    try {
+      const resp = await fetch('/data/bean2bean_analysis.json');
+      return { clients: ['bean2bean'], data: { bean2bean: await resp.json() } };
+    } catch(e2) {
+      // Try embedded data
+      if (window.__BOOKS_OS_DATA__) return window.__BOOKS_OS_DATA__;
+      throw new Error('No data available');
+    }
+  }
+}
+
+function renderKPIs(d) {
+  const years = d.revenue_by_year || [];
+  const latest = years[years.length - 1];
+  const prevFull = years.length >= 2 ? years[years.length - 2] : null;
+  const yoy = d.yoy_growth || [];
+  const latestYoy = yoy[yoy.length - 1];
+  const churn = d.customer_churn || [];
+  const latestChurn = churn[churn.length - 1];
+  const lost = d.lost_customers || [];
+  const totalRev = years.reduce((s, y) => s + y.revenue, 0);
+
+  const kpis = [
+    { label: 'Total Revenue', value: fmt(totalRev), delta: null },
+    { label: `${latest?.year || ''} Revenue`, value: fmt(latest?.revenue || 0),
+      delta: latestYoy?.revenue_growth_pct != null ? pct(latestYoy.revenue_growth_pct) : null,
+      up: latestYoy?.revenue_growth_pct > 0 },
+    { label: 'Active Customers', value: latest?.active_customers || 0,
+      delta: latestYoy?.customer_growth_pct != null ? pct(latestYoy.customer_growth_pct) : null,
+      up: latestYoy?.customer_growth_pct > 0 },
+    { label: 'Total Orders', value: (latest?.total_orders || 0).toLocaleString() },
+    { label: 'Churn Rate', value: (latestChurn?.churn_rate_pct || 0) + '%',
+      delta: null, up: false },
+    { label: 'Lost Customers', value: lost.length,
+      delta: fmt(lost.reduce((s, r) => s + r.lifetime_revenue, 0)) + ' at risk', up: false },
+  ];
+
+  $('#kpiRow').innerHTML = kpis.map(k => `
+    <div class="kpi-card">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      ${k.delta ? `<div class="delta ${k.up ? 'up' : 'down'}">${k.delta}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderRevenueChart(d) {
+  const months = d.revenue_by_month || [];
+  if (charts.revenue) charts.revenue.destroy();
+  charts.revenue = new Chart($('#revenueChart'), {
+    type: 'line',
+    data: {
+      labels: months.map(m => m.month),
+      datasets: [{
+        label: 'Revenue',
+        data: months.map(m => m.revenue),
+        borderColor: COLORS.accent,
+        backgroundColor: COLORS.accent + '20',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2,
+      }, {
+        label: 'Active Customers',
+        data: months.map(m => m.active_customers),
+        borderColor: COLORS.green,
+        yAxisID: 'y1',
+        tension: 0.3,
+        pointRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { ticks: { callback: v => fmt(v) } },
+        y1: { position: 'right', grid: { display: false }, title: { display: true, text: 'Customers' } },
+        x: { ticks: { maxTicksToShow: 12 } }
+      },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.datasetIndex === 0 ? fmt(ctx.raw) : ctx.raw) } } }
+    }
+  });
+}
+
+function renderYearChart(d) {
+  const years = d.revenue_by_year || [];
+  if (charts.year) charts.year.destroy();
+  charts.year = new Chart($('#yearChart'), {
+    type: 'bar',
+    data: {
+      labels: years.map(y => y.year),
+      datasets: [{
+        label: 'Revenue',
+        data: years.map(y => y.revenue),
+        backgroundColor: [COLORS.blue, COLORS.accent, COLORS.green, COLORS.orange],
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { ticks: { callback: v => fmt(v) } } },
+      plugins: { tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } }
+    }
+  });
+}
+
+function renderNewReturnChart(d) {
+  const nr = d.new_vs_returning || [];
+  if (charts.newReturn) charts.newReturn.destroy();
+  charts.newReturn = new Chart($('#newReturnChart'), {
+    type: 'bar',
+    data: {
+      labels: nr.map(m => m.month),
+      datasets: [{
+        label: 'New',
+        data: nr.map(m => m.new_customers),
+        backgroundColor: COLORS.green,
+        borderRadius: 4,
+      }, {
+        label: 'Returning',
+        data: nr.map(m => m.returning_customers),
+        backgroundColor: COLORS.accent,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { x: { stacked: true }, y: { stacked: true } }
+    }
+  });
+}
+
+function renderChurnChart(d) {
+  const churn = d.customer_churn || [];
+  if (charts.churn) charts.churn.destroy();
+  charts.churn = new Chart($('#churnChart'), {
+    type: 'bar',
+    data: {
+      labels: churn.map(c => c.year),
+      datasets: [{
+        label: 'Retained',
+        data: churn.map(c => c.retained),
+        backgroundColor: COLORS.green,
+        borderRadius: 4,
+      }, {
+        label: 'Churned',
+        data: churn.map(c => c.churned),
+        backgroundColor: COLORS.red,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { x: { stacked: true }, y: { stacked: true } },
+      plugins: { tooltip: { callbacks: {
+        afterBody: (items) => {
+          const idx = items[0].dataIndex;
+          return `Churn rate: ${churn[idx].churn_rate_pct}%`;
+        }
+      }}}
+    }
+  });
+}
+
+function renderConcentrationChart(d) {
+  const conc = d.customer_concentration || [];
+  if (charts.concentration) charts.concentration.destroy();
+  charts.concentration = new Chart($('#concentrationChart'), {
+    type: 'doughnut',
+    data: {
+      labels: conc.map(c => `${c.segment} (${c.customer_count})`),
+      datasets: [{
+        data: conc.map(c => c.revenue_share_pct),
+        backgroundColor: [COLORS.accent, COLORS.blue, COLORS.orange, COLORS.red],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '60%',
+      plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}% of revenue` } } }
+    }
+  });
+}
+
+function renderQuarterlyChart(d) {
+  const q = d.quarterly_summary || [];
+  if (charts.quarterly) charts.quarterly.destroy();
+  charts.quarterly = new Chart($('#quarterlyChart'), {
+    type: 'bar',
+    data: {
+      labels: q.map(r => `Q${r.quarter} ${r.year}`),
+      datasets: [{
+        label: 'Revenue',
+        data: q.map(r => r.revenue),
+        backgroundColor: COLORS.accent + '80',
+        borderRadius: 4,
+      }, {
+        label: 'Avg Order Value',
+        data: q.map(r => r.avg_order_value),
+        type: 'line',
+        borderColor: COLORS.orange,
+        yAxisID: 'y1',
+        tension: 0.3,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { ticks: { callback: v => fmt(v) } },
+        y1: { position: 'right', grid: { display: false }, ticks: { callback: v => '$' + v } }
+      }
+    }
+  });
+}
+
+function renderTopCustomers(d) {
+  const top = d.top_customers || [];
+  $('#topCustomersTable').innerHTML = `<table>
+    <thead><tr><th>#</th><th>Customer</th><th>Revenue</th><th>Orders</th><th>AOV</th><th>Last Order</th><th>Status</th></tr></thead>
+    <tbody>${top.map((c, i) => {
+      const days = c.days_since_last;
+      const status = days > 90 ? '<span class="tag tag-red">Lost</span>' :
+                     days > 45 ? '<span class="tag tag-orange">At Risk</span>' :
+                     '<span class="tag tag-green">Active</span>';
+      return `<tr>
+        <td>${i+1}</td>
+        <td><strong>${c.customer}</strong>${c.parent_customer ? `<br><small style="color:var(--text-dim)">${c.parent_customer}</small>` : ''}</td>
+        <td>${fmt(c.lifetime_revenue)}</td>
+        <td>${c.total_orders}</td>
+        <td>${fmtD(c.avg_order_value)}</td>
+        <td>${c.last_order}${days > 0 ? `<br><small style="color:var(--text-dim)">${days}d ago</small>` : ''}</td>
+        <td>${status}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderProductMix(d) {
+  const prods = d.product_mix || [];
+  $('#productMixTable').innerHTML = `<table>
+    <thead><tr><th>#</th><th>Product</th><th>Revenue</th><th>Share</th><th>Units</th><th>Customers</th></tr></thead>
+    <tbody>${prods.map((p, i) => `<tr>
+      <td>${i+1}</td>
+      <td>${p.product}</td>
+      <td>${fmt(p.total_revenue)}</td>
+      <td>${p.revenue_share_pct}%</td>
+      <td>${p.total_units.toLocaleString()}</td>
+      <td>${p.unique_customers}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+let allLost = [];
+function renderLostCustomers(d, filter) {
+  allLost = d.lost_customers || [];
+  $('#lostCount').textContent = allLost.length;
+  filterLost(filter || 'all');
+}
+
+function filterLost(mode) {
+  $$('.tab-btn').forEach(b => b.classList.remove('active'));
+  event?.target?.classList.add('active');
+
+  let filtered = [...allLost];
+  if (mode === 'high') filtered = filtered.filter(c => c.lifetime_revenue > 5000);
+  if (mode === 'recent') filtered = filtered.filter(c => c.days_since_last_order < 180);
+  filtered.sort((a, b) => b.lifetime_revenue - a.lifetime_revenue);
+
+  $('#lostTable').innerHTML = `<table>
+    <thead><tr><th>Customer</th><th>Lifetime Rev</th><th>Orders</th><th>Last Order</th><th>Days Ago</th></tr></thead>
+    <tbody>${filtered.slice(0, 50).map(c => `<tr>
+      <td>${c.customer}</td>
+      <td>${fmt(c.lifetime_revenue)}</td>
+      <td>${c.total_orders}</td>
+      <td>${c.last_order_date}</td>
+      <td><span class="tag ${c.days_since_last_order > 365 ? 'tag-red' : 'tag-orange'}">${c.days_since_last_order}d</span></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderAtRisk(d) {
+  const risk = d.at_risk_customers || [];
+  $('#atRiskTable').innerHTML = `<table>
+    <thead><tr><th>Customer</th><th>Recent Rev (90d)</th><th>Prior Rev (90d)</th><th>Change</th></tr></thead>
+    <tbody>${risk.map(c => `<tr>
+      <td>${c.customer}</td>
+      <td>${fmt(c.recent_revenue)}</td>
+      <td>${fmt(c.prior_revenue)}</td>
+      <td><span class="tag tag-red">${c.revenue_change_pct}%</span></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderPairTable(d) {
+  const pairs = d.cross_sell_pairs || [];
+  $('#pairTable').innerHTML = `<table>
+    <thead><tr><th>Product A</th><th>Product B</th><th>Shared</th><th>A->B</th><th>B->A</th></tr></thead>
+    <tbody>${pairs.slice(0, 20).map(p => {
+      const nameA = p.product_a.length > 30 ? p.product_a.slice(0,30) + '...' : p.product_a;
+      const nameB = p.product_b.length > 30 ? p.product_b.slice(0,30) + '...' : p.product_b;
+      return `<tr>
+        <td title="${p.product_a}">${nameA}</td>
+        <td title="${p.product_b}">${nameB}</td>
+        <td><strong>${p.shared_customers}</strong></td>
+        <td>${p.pct_a_also_buy_b}%</td>
+        <td>${p.pct_b_also_buy_a}%</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderCrossSellTable(d) {
+  const opps = d.cross_sell_opportunities || [];
+  // Group by customer
+  const grouped = {};
+  opps.forEach(o => {
+    if (!grouped[o.customer]) grouped[o.customer] = { revenue: o.lifetime_revenue, recs: [] };
+    grouped[o.customer].recs.push(o.recommend_product);
+  });
+  const customers = Object.entries(grouped).sort((a,b) => b[1].revenue - a[1].revenue).slice(0, 20);
+
+  $('#crossSellTable').innerHTML = `<table>
+    <thead><tr><th>Customer</th><th>Revenue</th><th>Recommend</th></tr></thead>
+    <tbody>${customers.map(([name, data]) => {
+      const recs = data.recs.slice(0, 3).map(r => {
+        const short = r.length > 35 ? r.slice(0,35) + '...' : r;
+        return `<span class="tag tag-green" style="margin:2px;" title="${r}">${short}</span>`;
+      }).join('');
+      return `<tr>
+        <td><strong>${name}</strong></td>
+        <td>${fmt(data.revenue)}</td>
+        <td>${recs}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderLadderTable(d) {
+  const ladder = d.product_adoption_ladder || [];
+  // Group by entry product
+  const grouped = {};
+  ladder.forEach(l => {
+    if (!grouped[l.entry_product]) grouped[l.entry_product] = { entries: l.total_entries, expansions: [] };
+    grouped[l.entry_product].expansions.push({ product: l.expansion_product, rate: l.expansion_rate_pct, count: l.customers_expanded });
+  });
+
+  let html = '';
+  Object.entries(grouped).forEach(([entry, data]) => {
+    const entryShort = entry.length > 35 ? entry.slice(0,35) + '...' : entry;
+    html += `<div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
+      <div style="font-weight:600;margin-bottom:8px;" title="${entry}">${entryShort} <span style="color:var(--text-dim);font-weight:400;">(${data.entries} customers start here)</span></div>`;
+    data.expansions.sort((a,b) => b.rate - a.rate);
+    data.expansions.slice(0, 4).forEach(exp => {
+      const expShort = exp.product.length > 40 ? exp.product.slice(0,40) + '...' : exp.product;
+      const barWidth = Math.min(exp.rate, 100);
+      html += `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px;">
+        <div style="flex:1;" title="${exp.product}">${expShort}</div>
+        <div style="width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+          <div style="width:${barWidth}%;height:100%;background:var(--green);border-radius:3px;"></div>
+        </div>
+        <div style="width:50px;text-align:right;color:var(--green);font-weight:600;">${exp.rate}%</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  $('#ladderTable').innerHTML = html;
+}
+
+function renderAll(d) {
+  renderKPIs(d);
+  renderRevenueChart(d);
+  renderYearChart(d);
+  renderNewReturnChart(d);
+  renderChurnChart(d);
+  renderConcentrationChart(d);
+  renderQuarterlyChart(d);
+  renderTopCustomers(d);
+  renderProductMix(d);
+  renderLostCustomers(d);
+  renderAtRisk(d);
+  renderPairTable(d);
+  renderCrossSellTable(d);
+  renderLadderTable(d);
+}
+
+let hasServer = true;
+
+async function fetchFiltered(client, start, end) {
+  if (!hasServer) {
+    // Static mode: just return full data (no server-side filtering)
+    return FULL_DATA[client];
+  }
+  try {
+    let url = `/api/analyze?client=${client}`;
+    if (start) url += `&start=${start}`;
+    if (end) url += `&end=${end}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('no server');
+    return await resp.json();
+  } catch(e) {
+    hasServer = false;
+    return FULL_DATA[client];
+  }
+}
+
+async function fetchDateRange(client) {
+  try {
+    const resp = await fetch(`/api/date-range?client=${client}`);
+    if (!resp.ok) throw new Error('no server');
+    return await resp.json();
+  } catch(e) {
+    hasServer = false;
+    // Derive from monthly data
+    const d = FULL_DATA[client];
+    const months = (d?.revenue_by_month || []).map(m => m.month);
+    if (months.length) return { min: months[0] + '-01', max: months[months.length-1] + '-28' };
+    return { min: null, max: null };
+  }
+}
+
+function buildYearPresets() {
+  const presets = $('#yearPresets');
+  if (!dateRange.min || !dateRange.max) return;
+  const minY = parseInt(dateRange.min.slice(0, 4));
+  const maxY = parseInt(dateRange.max.slice(0, 4));
+  let html = '<button class="tab-btn active" onclick="selectYear(null, this)">All</button>';
+  for (let y = minY; y <= maxY; y++) {
+    html += `<button class="tab-btn" onclick="selectYear(${y}, this)">${y}</button>`;
+  }
+  presets.innerHTML = html;
+}
+
+async function selectYear(year, btn) {
+  $$('#yearPresets .tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  if (year) {
+    $('#startDate').value = `${year}-01-01`;
+    $('#endDate').value = `${year}-12-31`;
+  } else {
+    $('#startDate').value = '';
+    $('#endDate').value = '';
+  }
+  await applyDateFilter();
+}
+
+async function applyDateFilter() {
+  const start = $('#startDate').value || null;
+  const end = $('#endDate').value || null;
+  const client = currentClient;
+
+  if (!start && !end) {
+    // Use full cached data
+    renderAll(FULL_DATA[client]);
+    $('#generatedAt').textContent = 'All time';
+    return;
+  }
+
+  $('#generatedAt').textContent = 'Filtering...';
+  const data = await fetchFiltered(client, start, end);
+  const label = `${start || 'start'} to ${end || 'now'}`;
+  $('#generatedAt').textContent = label + ` (${data.filter?.total_txns || 0} txns)`;
+  renderAll(data);
+}
+
+async function resetDateFilter() {
+  $('#startDate').value = '';
+  $('#endDate').value = '';
+  $$('#yearPresets .tab-btn').forEach(b => b.classList.remove('active'));
+  $$('#yearPresets .tab-btn')[0]?.classList.add('active');
+  renderAll(FULL_DATA[currentClient]);
+  $('#generatedAt').textContent = 'All time';
+}
+
+// Init
+async function initDashboard() {
+  try {
+    const payload = await loadData();
+    FULL_DATA = payload.data;
+    DATA = payload.data;
+    const clients = payload.clients;
+
+    const select = $('#clientSelect');
+    clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+      select.appendChild(opt);
+    });
+
+    select.addEventListener('change', async () => {
+      currentClient = select.value;
+      $('#clientTitle').innerHTML = clientTitle(currentClient);
+      dateRange = await fetchDateRange(currentClient);
+      buildYearPresets();
+      resetDateFilter();
+    });
+
+    // Render first client
+    currentClient = clients[0];
+    select.value = currentClient;
+    dateRange = await fetchDateRange(currentClient);
+    buildYearPresets();
+
+    const d = FULL_DATA[currentClient];
+    $('#generatedAt').textContent = 'All time';
+    $('#loading').style.display = 'none';
+    $('#app').style.display = 'block';
+    renderAll(d);
+  } catch(e) {
+    $('#loading').textContent = 'Error loading data: ' + e.message;
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>
